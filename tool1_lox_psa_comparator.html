@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOX vs PSA Cost Comparator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0f1923;--paper:#f5f0e8;--border:#d4cfc4;--card:#fff;
+  --psa:#1a6b4a;--lox:#c8440a;--muted:#6b7280;--highlight:#fff8f0;
+}
+body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:13px;min-height:100vh}
+.wrap{padding:24px;max-width:1100px;margin:0 auto}
+h1{font-family:'DM Serif Display',serif;font-size:26px;font-weight:400;margin-bottom:2px}
+.sub{font-size:12px;color:var(--muted);margin-bottom:20px}
+.layout{display:grid;grid-template-columns:300px 1fr;gap:16px}
+
+.panel{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px}
+.panel-title{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;margin-bottom:12px}
+
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}
+.field input[type=range]{width:100%;accent-color:var(--psa);cursor:pointer;height:4px;margin-top:2px}
+.field select{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink)}
+.field-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+.field-val{font-size:14px;font-weight:600;font-family:'DM Serif Display',serif}
+.field-val.psa{color:var(--psa)}.field-val.lox{color:var(--lox)}
+
+.verdict{border-radius:6px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;transition:background .3s}
+.verdict.psa-wins{background:var(--psa);color:#fff}
+.verdict.lox-wins{background:var(--lox);color:#fff}
+.v-label{font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.07em}
+.v-val{font-size:18px;font-weight:600}
+
+.out-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.out-card{background:var(--paper);border-radius:6px;padding:12px}
+.out-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.out-val{font-size:20px;font-weight:600;font-family:'DM Serif Display',serif}
+.out-sub{font-size:10px;color:var(--muted);margin-top:2px}
+
+.bar-row{margin-bottom:10px}
+.bar-meta{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px}
+.bar-bg{background:#eee;border-radius:3px;height:12px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .4s ease}
+
+.chart-wrap{position:relative;height:180px;margin-top:8px}
+
+.bk-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.bk-table tr{border-bottom:1px solid #f0ece4}
+.bk-table tr:last-child{border-bottom:none}
+.bk-table td{padding:6px 4px}
+.bk-table td:last-child{text-align:right;font-weight:500}
+.bk-table .sec-head td{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding-top:10px;font-weight:600}
+
+.sens-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.sens-table th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:6px 8px;text-align:left;border-bottom:2px solid var(--border)}
+.sens-table td{padding:7px 8px;border-bottom:1px solid #f0ece4}
+.sens-table tr.hl td{background:#f0f9f4;font-weight:600}
+.psa-c{color:var(--psa);font-weight:600}.lox-c{color:var(--lox);font-weight:600}
+
+footer{text-align:center;padding:20px;font-size:11px;color:var(--muted);margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>LOX vs PSA Cost Comparator</h1>
+  <div class="sub">Medical Oxygen — 10-Year Total Cost of Ownership · Adjust any input to update outputs instantly</div>
+
+  <div class="layout">
+    <!-- INPUTS -->
+    <div>
+      <div class="panel">
+        <div class="panel-title">Facility</div>
+        <div class="field">
+          <div class="field-row"><label>Total beds</label><span class="field-val" id="v-beds">800</span></div>
+          <input type="range" min="50" max="2000" value="800" step="50" oninput="sync('beds',this.value);calc()">
+        </div>
+        <div class="field">
+          <div class="field-row"><label>Demand surge factor</label><span class="field-val" id="v-surge">3×</span></div>
+          <input type="range" min="1" max="5" value="3" step="0.5" oninput="sync('surge',this.value,'','×');calc()">
+        </div>
+        <div class="field">
+          <label>Hospital type</label>
+          <select id="s-htype" onchange="calc()">
+            <option value="0.04">District hospital (0.04 m³/bed/hr)</option>
+            <option value="0.05" selected>Tertiary hospital (0.05 m³/bed/hr)</option>
+            <option value="0.06">Teaching hospital (0.06 m³/bed/hr)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">LOX Parameters</div>
+        <div class="field">
+          <div class="field-row"><label>LOX price (US$/ton)</label><span class="field-val lox" id="v-loxprice">500</span></div>
+          <input type="range" min="150" max="1200" value="500" step="10" oninput="sync('loxprice',this.value);calc()">
+        </div>
+        <div class="field">
+          <div class="field-row"><label>Transport cost ($/km/ton)</label><span class="field-val lox" id="v-loxtr">0.115</span></div>
+          <input type="range" min="0.05" max="0.50" value="0.115" step="0.005" oninput="sync('loxtr',this.value,'lox',3);calc()">
+        </div>
+        <div class="field">
+          <div class="field-row"><label>Distance to nearest ASU (km)</label><span class="field-val lox" id="v-dist">50</span></div>
+          <input type="range" min="5" max="500" value="50" step="5" oninput="sync('dist',this.value);calc()">
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">PSA Parameters</div>
+        <div class="field">
+          <div class="field-row"><label>PSA run hours / day</label><span class="field-val psa" id="v-psahrs">14</span></div>
+          <input type="range" min="2" max="24" value="14" step="1" oninput="sync('psahrs',this.value,'psa','h/day');calc()">
+        </div>
+        <div class="field">
+          <div class="field-row"><label>Electricity cost ($/kWh)</label><span class="field-val psa" id="v-elec">0.169</span></div>
+          <input type="range" min="0.05" max="0.50" value="0.169" step="0.005" oninput="sync('elec',this.value,'psa',3);calc()">
+        </div>
+        <div class="field">
+          <div class="field-row"><label>Biomedical engineer salary ($/mo)</label><span class="field-val psa" id="v-sal">1000</span></div>
+          <input type="range" min="200" max="5000" value="1000" step="100" oninput="sync('sal',this.value);calc()">
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Planning Horizon</div>
+        <div class="field">
+          <div class="field-row"><label>Time horizon (years)</label><span class="field-val" id="v-yrs">10</span></div>
+          <input type="range" min="1" max="20" value="10" step="1" oninput="sync('yrs',this.value,'','yrs');calc()">
+        </div>
+        <div class="field">
+          <label>CAPEX funded by donors?</label>
+          <select id="s-donor" onchange="calc()">
+            <option value="1" selected>Yes — CAPEX = $0 to facility</option>
+            <option value="0">No — facility pays full CAPEX</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- OUTPUTS -->
+    <div>
+      <div class="verdict psa-wins" id="verdict-bar">
+        <div>
+          <div class="v-label">Recommended oxygen source</div>
+          <div class="v-val" id="v-rec">PSA Plant</div>
+        </div>
+        <div style="text-align:right">
+          <div class="v-label">Cost saving vs alternative</div>
+          <div class="v-val" id="v-saving">—</div>
+        </div>
+      </div>
+
+      <div class="out-grid">
+        <div class="out-card">
+          <div class="out-label">O₂ peak need</div>
+          <div class="out-val" style="color:var(--psa)" id="o-need">95 Nm³/hr</div>
+          <div class="out-sub" id="o-need-sub">incl. 3× surge</div>
+        </div>
+        <div class="out-card">
+          <div class="out-label">PSA unit cost</div>
+          <div class="out-val" style="color:var(--psa)" id="o-psa-unit">$0.631/m³</div>
+          <div class="out-sub" id="o-psa-sub">at 14h/day</div>
+        </div>
+        <div class="out-card">
+          <div class="out-label">LOX unit cost</div>
+          <div class="out-val" style="color:var(--lox)" id="o-lox-unit">$1.15/m³</div>
+          <div class="out-sub">landed at facility</div>
+        </div>
+        <div class="out-card">
+          <div class="out-label">Planning horizon</div>
+          <div class="out-val" id="o-tco-yrs">10 years</div>
+          <div class="out-sub" id="o-tco-sub">cost comparison period</div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:12px">
+        <div class="panel-title">Unit cost comparison (US$/m³)</div>
+        <div class="bar-row">
+          <div class="bar-meta">
+            <span style="color:var(--lox)">● LOX (landed at facility)</span>
+            <span id="bar-lox-val" style="color:var(--lox);font-weight:600">$1.150</span>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" id="bar-lox" style="background:var(--lox);width:80%"></div></div>
+        </div>
+        <div class="bar-row" style="margin-top:8px">
+          <div class="bar-meta">
+            <span style="color:var(--psa)">● PSA (operational cost only)</span>
+            <span id="bar-psa-val" style="color:var(--psa);font-weight:600">$0.631</span>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" id="bar-psa" style="background:var(--psa);width:44%"></div></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:12px">
+        <div class="panel-title">Total Cost of Ownership breakdown</div>
+        <table class="bk-table">
+          <tbody>
+            <tr class="sec-head"><td colspan="2">PSA costs</td></tr>
+            <tr><td>CAPEX — PSA plant & installation</td><td id="bk-capex">$0 (donor funded)</td></tr>
+            <tr><td>Annual staff costs</td><td id="bk-staff">—</td></tr>
+            <tr><td>Annual maintenance & spare parts</td><td id="bk-maint">—</td></tr>
+            <tr><td>Annual grid electricity</td><td id="bk-elec">—</td></tr>
+            <tr style="background:#f0f9f4"><td><strong>PSA <span id="bk-yr">10</span>-year TCO</strong></td><td id="bk-psa-tco" style="color:var(--psa);font-weight:700">—</td></tr>
+            <tr class="sec-head"><td colspan="2">LOX costs</td></tr>
+            <tr><td>Annual LOX cost (landed)</td><td id="bk-lox-ann">—</td></tr>
+            <tr style="background:#fef2ec"><td><strong>LOX <span id="bk-yr2">10</span>-year TCO</strong></td><td id="bk-lox-tco" style="color:var(--lox);font-weight:700">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel" style="margin-bottom:12px">
+        <div class="panel-title">Sensitivity — LOX unit cost vs LOX price ($/ton)</div>
+        <div class="chart-wrap"><canvas id="sensChart"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Sensitivity — PSA run hours breakeven table</div>
+        <table class="sens-table">
+          <thead><tr><th>PSA hrs/day</th><th>PSA $/m³</th><th>LOX $/m³</th><th>Cheaper source</th></tr></thead>
+          <tbody id="hrs-sens-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <footer>LOX vs PSA Cost Comparator &nbsp;·&nbsp; Medical Oxygen Quantification Tools &nbsp;·&nbsp; Dummy data for demonstration</footer>
+</div>
+
+<script>
+function sync(id, val, cls, sfx){
+  const dp = sfx !== undefined ? 0 : (parseFloat(val) % 1 !== 0 ? 3 : 0);
+  const suffix = sfx || '';
+  let display = parseFloat(val).toFixed(dp) + suffix;
+  if(sfx === '×') display = parseFloat(val).toFixed(1) + '×';
+  if(sfx === 'h/day') display = parseInt(val) + 'h/day';
+  if(sfx === 'yrs') display = parseInt(val) + ' yrs';
+  if(dp === 3) display = parseFloat(val).toFixed(3);
+  document.getElementById('v-'+id).textContent = display;
+}
+
+function fmtUSD(n){
+  if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M';
+  if(n>=1e3) return '$'+(n/1e3).toFixed(0)+'K';
+  return '$'+n.toFixed(0);
+}
+
+let chart;
+function calc(){
+  const beds = parseFloat(document.querySelector('input[oninput*="beds"]').value);
+  const surge = parseFloat(document.querySelector('input[oninput*="surge"]').value);
+  const hrate = parseFloat(document.getElementById('s-htype').value);
+  const loxPrice = parseFloat(document.querySelector('input[oninput*="loxprice"]').value);
+  const loxTr = parseFloat(document.querySelector('input[oninput*="loxtr"]').value);
+  const dist = parseFloat(document.querySelector('input[oninput*="dist"]').value);
+  const psaHrs = parseFloat(document.querySelector('input[oninput*="psahrs"]').value);
+  const elec = parseFloat(document.querySelector('input[oninput*="elec"]').value);
+  const sal = parseFloat(document.querySelector('input[oninput*="sal"]').value);
+  const yrs = parseInt(document.querySelector('input[oninput*="yrs"]').value);
+  const donor = parseInt(document.getElementById('s-donor').value);
+
+  const baseNeed = beds * hrate;
+  const peakNeed = baseNeed * surge;
+  const numUnits = Math.ceil(peakNeed / 50);
+  const psaCapacity = numUnits * 50;
+  const psaCapexBase = numUnits * 212500 * 1.4;
+  const psaCapex = donor ? 0 : psaCapexBase;
+
+  const kWperUnit = 75;
+  const totalKW = numUnits * kWperUnit;
+  const elecPerYr = totalKW * psaHrs * 365 * elec;
+  const staffPerYr = sal * 12 * (numUnits >= 2 ? 1 : 0.5) + 500 * 12;
+  const maintPerYr = 74000 * numUnits;
+  const psaOpexPerYr = elecPerYr + staffPerYr + maintPerYr;
+  const psaTCO = psaCapex + psaOpexPerYr * yrs;
+
+  const o2PerYr = psaCapacity * psaHrs * 365 * 0.95;
+  const psaUnitCost = psaOpexPerYr / o2PerYr;
+
+  const landedPricePerTon = loxPrice + loxTr * dist;
+  const loxUnitCost = landedPricePerTon / 1400;
+  const loxAnnual = loxUnitCost * o2PerYr;
+  const loxTCO = loxAnnual * yrs;
+
+  const psaWins = psaTCO < loxTCO;
+  const saving = Math.abs(loxTCO - psaTCO);
+
+  document.getElementById('o-need').textContent = peakNeed.toFixed(0)+' Nm³/hr';
+  document.getElementById('o-need-sub').textContent = 'incl. '+surge.toFixed(1)+'× surge · '+numUnits+' PSA unit'+(numUnits>1?'s':'');
+  document.getElementById('o-psa-unit').textContent = '$'+psaUnitCost.toFixed(3)+'/m³';
+  document.getElementById('o-psa-sub').textContent = 'at '+psaHrs+'h/day';
+  document.getElementById('o-lox-unit').textContent = '$'+loxUnitCost.toFixed(3)+'/m³';
+  document.getElementById('o-tco-yrs').textContent = yrs+' years';
+  document.getElementById('v-rec').textContent = psaWins ? 'PSA Plant' : 'Liquid Oxygen (LOX)';
+  document.getElementById('v-saving').textContent = fmtUSD(saving)+' over '+yrs+' yrs';
+  const vb = document.getElementById('verdict-bar');
+  vb.className = 'verdict '+(psaWins?'psa-wins':'lox-wins');
+
+  document.getElementById('bk-capex').textContent = donor?'$0 (donor funded)':fmtUSD(psaCapexBase);
+  document.getElementById('bk-staff').textContent = fmtUSD(staffPerYr)+' / yr';
+  document.getElementById('bk-maint').textContent = fmtUSD(maintPerYr)+' / yr';
+  document.getElementById('bk-elec').textContent = fmtUSD(elecPerYr)+' / yr';
+  document.getElementById('bk-psa-tco').textContent = fmtUSD(psaTCO);
+  document.getElementById('bk-lox-ann').textContent = fmtUSD(loxAnnual)+' / yr';
+  document.getElementById('bk-lox-tco').textContent = fmtUSD(loxTCO);
+  document.getElementById('bk-yr').textContent = yrs;
+  document.getElementById('bk-yr2').textContent = yrs;
+
+  const maxUnit = Math.max(loxUnitCost, psaUnitCost, 0.01);
+  document.getElementById('bar-lox').style.width = Math.min(100,(loxUnitCost/maxUnit)*100)+'%';
+  document.getElementById('bar-psa').style.width = Math.min(100,(psaUnitCost/maxUnit)*100)+'%';
+  document.getElementById('bar-lox-val').textContent = '$'+loxUnitCost.toFixed(3);
+  document.getElementById('bar-psa-val').textContent = '$'+psaUnitCost.toFixed(3);
+
+  // Sensitivity chart
+  const loxPrices=[], loxCosts=[], psaLine=[];
+  for(let p=100;p<=1500;p+=50){
+    const tc=(p+loxTr*dist)/1400;
+    loxPrices.push('$'+p);
+    loxCosts.push(+tc.toFixed(4));
+    psaLine.push(+psaUnitCost.toFixed(4));
+  }
+  if(chart) chart.destroy();
+  chart = new Chart(document.getElementById('sensChart'),{
+    type:'line',
+    data:{labels:loxPrices,datasets:[
+      {label:'LOX unit cost ($/m³)',data:loxCosts,borderColor:'#c8440a',borderWidth:2,pointRadius:0,tension:0.2,fill:false},
+      {label:'PSA unit cost ($/m³)',data:psaLine,borderColor:'#1a6b4a',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{family:'DM Sans',size:11},boxWidth:12,padding:14}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:'DM Sans',size:10},maxTicksLimit:10}},
+        y:{grid:{color:'#ede9e0'},ticks:{font:{family:'DM Sans',size:10},callback:v=>'$'+v.toFixed(2)}}
+      }
+    }
+  });
+
+  // Hrs sensitivity table
+  const tbody = document.getElementById('hrs-sens-table');
+  tbody.innerHTML='';
+  [2,4,6,8,10,12,14,16,18,20,22,24].forEach(h=>{
+    const o2h = psaCapacity*h*365*0.95;
+    const ec = totalKW*h*365*elec;
+    const tc = (ec+staffPerYr+maintPerYr)/o2h;
+    const isCurrent = h===psaHrs;
+    const tr = document.createElement('tr');
+    if(isCurrent) tr.className='hl';
+    tr.innerHTML = `<td>${h}h/day${isCurrent?' ★':''}</td><td class="${tc<loxUnitCost?'psa-c':''}">$${tc.toFixed(3)}</td><td>$${loxUnitCost.toFixed(3)}</td><td class="${tc<loxUnitCost?'psa-c':'lox-c'}">${tc<loxUnitCost?'PSA ✓':'LOX ✓'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+calc();
+</script>
+</body>
+</html>
