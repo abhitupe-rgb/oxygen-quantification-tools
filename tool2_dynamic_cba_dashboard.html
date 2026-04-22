@@ -1,466 +1,1296 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>O₂ Operational Cost Dashboard — Dynamic CBA</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oxygen Cost Calculator — Find Your Cheapest Option</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0d1117;--s1:#161b22;--s2:#1c2330;--border:#30363d;
-  --text:#e6edf3;--muted:#7d8590;
-  --psa:#3fb950;--lmo:#58a6ff;--cyl:#f78166;
-}
-html,body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;min-height:100vh}
-.wrap{padding:20px;max-width:1100px;margin:0 auto}
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)}
-h1{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600}
-.header-sub{font-size:11px;color:var(--muted);margin-top:3px;font-family:'IBM Plex Mono',monospace}
-.pill{background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--psa)}
+  :root {
+    --bg: #f4f6f9;
+    --panel: #ffffff;
+    --border: #e2e6ed;
+    --text: #1a2230;
+    --muted: #6b7a92;
+    --psa: #1a6fdb;
+    --psa-light: #e8f0fb;
+    --lmo: #d97706;
+    --lmo-light: #fef3e2;
+    --cyl: #16a34a;
+    --cyl-light: #e8f5ee;
+    --danger: #dc2626;
+    --saving: #0ea372;
+    --tag-bg: #eef2ff;
+    --tag-text: #3b4fcf;
+    --radius: 10px;
+    --shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
 
-.layout{display:grid;grid-template-columns:270px 1fr;gap:14px}
-.panel{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:10px}
-.ptitle{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;font-family:'IBM Plex Mono',monospace}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-.field{margin-bottom:12px}
-.field label{display:block;font-size:10px;color:var(--muted);margin-bottom:3px}
-.frow{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
-.fval{font-size:14px;font-weight:600;font-family:'IBM Plex Mono',monospace}
-.psa-c{color:var(--psa)}.lmo-c{color:var(--lmo)}.cyl-c{color:var(--cyl)}
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
 
-input[type=range]{width:100%;cursor:pointer;height:4px;display:block}
-input[type=range].psa-r{accent-color:var(--psa)}
-input[type=range].lmo-r{accent-color:var(--lmo)}
-input[type=range].cyl-r{accent-color:var(--cyl)}
+  /* ── TOP BAR ── */
+  header {
+    background: #0f1c2e;
+    color: #fff;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 15px; font-weight: 500; letter-spacing: .3px; }
+  header span { font-size: 12px; color: #8fa3c0; }
 
-select{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 8px;font-size:12px;font-family:'IBM Plex Sans',sans-serif}
+  /* ── RECOMMENDATION BANNER ── */
+  #rec-banner {
+    background: linear-gradient(90deg, #0b3d6e 0%, #1260b5 100%);
+    color: #fff;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  #rec-banner .icon { font-size: 22px; flex-shrink: 0; }
+  #rec-banner .label { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: #a8c4e8; margin-bottom: 2px; }
+  #rec-banner .msg { font-size: 14px; font-weight: 500; }
 
-.verdict{border-radius:6px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;border:1px solid}
-.vl{font-size:9px;text-transform:uppercase;letter-spacing:.07em;opacity:.7;font-family:'IBM Plex Mono',monospace}
-.vv{font-size:17px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-top:2px}
+  /* ── LAYOUT ── */
+  .shell {
+    display: grid;
+    grid-template-columns: 310px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 90px);
+  }
 
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
-.stat{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:10px}
-.sl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;font-family:'IBM Plex Mono',monospace}
-.sv{font-size:19px;font-weight:600;font-family:'IBM Plex Mono',monospace}
-.ss{font-size:9px;color:var(--muted);margin-top:2px}
+  /* ── LEFT PANEL ── */
+  aside {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 20px 18px;
+    overflow-y: auto;
+  }
 
-.src-block{margin-bottom:12px}
-.src-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.src-name{font-size:11px;font-weight:500;display:flex;align-items:center;gap:5px}
-.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
-.src-cost{font-size:12px;font-weight:600;font-family:'IBM Plex Mono',monospace}
-.bar-bg{background:var(--s2);border-radius:3px;height:8px;overflow:hidden}
-.bar-fill{height:100%;border-radius:3px;transition:width .3s ease}
-.src-meta{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:3px}
-.opt-badge{font-size:9px;background:#0d2a1a;border:1px solid #1a5c2e;color:var(--psa);padding:1px 6px;border-radius:3px;font-family:'IBM Plex Mono',monospace}
+  .section-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin: 20px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-label:first-child { margin-top: 0; }
 
-.chart-wrap{position:relative;height:150px;margin-top:8px}
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .field label .tip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--muted);
+    font-size: 9px;
+    cursor: help;
+    position: relative;
+  }
+  .field label .tip:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 18px; top: -4px;
+    background: #1a2230;
+    color: #fff;
+    font-size: 11px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    white-space: nowrap;
+    z-index: 99;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+  }
 
-.mini-t{width:100%;border-collapse:collapse;font-size:11px}
-.mini-t th{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:6px 6px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;text-align:left}
-.mini-t td{padding:6px 6px;border-bottom:1px solid var(--s2);font-family:'IBM Plex Mono',monospace}
-.mini-t tr:last-child td{border-bottom:none}
-.winner-row{background:#0d2a1a}
+  .field input, .field select {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    background: #f9fafc;
+    transition: border .15s;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--psa);
+    background: #fff;
+  }
 
-.district-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
-.district-table th{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:5px 6px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;text-align:left}
-.district-table td{padding:5px 6px;border-bottom:1px solid var(--s2);font-family:'IBM Plex Mono',monospace;font-size:11px}
-.district-table tr:last-child td{border-bottom:none}
-.district-selected{color:var(--lmo);font-weight:600}
+  /* Advanced toggle */
+  .adv-toggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--psa);
+    cursor: pointer;
+    user-select: none;
+    margin: 8px 0 4px;
+  }
+  .adv-toggle input { display: none; }
+  .adv-fields { display: none; }
+  .adv-fields.open { display: block; }
 
-.forecast-wrap{display:flex;align-items:flex-end;gap:3px;height:70px;margin:10px 0 4px}
-.fc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
-.fc-bar{width:100%;border-radius:2px 2px 0 0;min-height:3px;transition:height .3s}
-.fc-lbl{font-size:8px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+  /* source colour dots */
+  .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot.psa { background: var(--psa); }
+  .dot.lmo { background: var(--lmo); }
+  .dot.cyl { background: var(--cyl); }
 
-footer{text-align:center;padding:20px;font-size:11px;color:var(--muted);margin-top:8px;border-top:1px solid var(--border)}
+  /* ── RIGHT PANEL ── */
+  main {
+    padding: 20px 22px;
+    overflow-y: auto;
+  }
+
+  /* summary row */
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .sum-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+  }
+  .sum-card .label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .sum-card .value { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 500; }
+  .sum-card .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .sum-card.highlight { background: #e8f5ee; border-color: var(--saving); }
+  .sum-card.highlight .value { color: var(--saving); }
+
+  /* source cards */
+  .sources-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .src-card {
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+  .src-card.winner { border-color: var(--psa); }
+  .src-card.winner.cyl-win { border-color: var(--cyl); }
+  .src-card.winner.lmo-win { border-color: var(--lmo); }
+
+  .src-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .src-name {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .src-desc { font-size: 11px; color: var(--muted); margin-bottom: 10px; font-style: italic; }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .badge.cheapest { background: #dcfce7; color: #15803d; }
+  .badge.mid      { background: #fef9c3; color: #a16207; }
+  .badge.costly   { background: #fee2e2; color: #b91c1c; }
+
+  .src-cost {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 26px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .src-cost.psa { color: var(--psa); }
+  .src-cost.cyl { color: var(--cyl); }
+  .src-cost.lmo { color: var(--lmo); }
+
+  .src-meta { font-size: 11px; color: var(--muted); line-height: 1.7; }
+  .src-meta span { display: block; }
+
+  .load-bar-wrap { margin-top: 10px; }
+  .load-bar-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .load-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .load-bar-fill { height: 100%; border-radius: 3px; transition: width .5s; }
+  .load-bar-fill.psa { background: var(--psa); }
+  .load-bar-fill.cyl { background: var(--cyl); }
+  .load-bar-fill.lmo { background: var(--lmo); }
+
+  /* charts row */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .chart-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+  }
+  .chart-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .chart-sub { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+  canvas { width: 100% !important; }
+
+  /* table */
+  .table-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+  }
+  .table-box table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .table-box th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    color: var(--muted);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-box td {
+    padding: 7px 8px;
+    border-bottom: 1px solid #f0f2f5;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+  }
+  .table-box tr:last-child td { border-bottom: none; }
+  .table-box tr.highlight-row td { background: #e8f0fb; font-weight: 600; }
+  .vs-col.cheaper { color: var(--saving); }
+  .vs-col.costlier { color: var(--danger); }
+
+  /* glossary */
+  .glossary {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+  }
+  .glossary h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 10px; }
+  .glossary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 20px; }
+  .glossary-item .term { font-size: 12px; font-weight: 600; color: var(--text); }
+  .glossary-item .def { font-size: 11px; color: var(--muted); }
+
+  footer {
+    text-align: center;
+    padding: 14px;
+    font-size: 11px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+
+  /* ── DATA TOOLBAR ── */
+  .data-toolbar {
+    background: #1a2230;
+    padding: 10px 28px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .data-toolbar .tb-label {
+    font-size: 11px;
+    color: #8fa3c0;
+    margin-right: 4px;
+    white-space: nowrap;
+  }
+  .tb-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .tb-btn.outline {
+    background: transparent;
+    border-color: #3a4f6a;
+    color: #c5d5e8;
+  }
+  .tb-btn.outline:hover { background: #243244; border-color: #5a7a9a; }
+  .tb-btn.primary {
+    background: var(--psa);
+    color: #fff;
+  }
+  .tb-btn.primary:hover { background: #1558c0; }
+  .tb-btn.success {
+    background: var(--saving);
+    color: #fff;
+  }
+  .tb-btn.success:hover { background: #0b8a60; }
+  .tb-btn.danger {
+    background: transparent;
+    border-color: #6a3a3a;
+    color: #f4a4a4;
+  }
+  .tb-btn.danger:hover { background: #3a1f1f; }
+
+  .tb-divider {
+    width: 1px; height: 20px;
+    background: #2e3f55;
+    margin: 0 4px;
+  }
+
+  /* preset select */
+  .preset-select {
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid #3a4f6a;
+    background: #243244;
+    color: #c5d5e8;
+    font-size: 12px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    cursor: pointer;
+  }
+  .preset-select:focus { outline: none; border-color: var(--psa); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 24px;
+    width: 520px;
+    max-width: 95vw;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+  }
+  .modal h2 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .modal p  { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.6; }
+  .modal textarea {
+    width: 100%;
+    height: 130px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    resize: vertical;
+    margin-bottom: 10px;
+  }
+  .modal textarea:focus { outline: none; border-color: var(--psa); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal-actions button {
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .modal-actions button.apply {
+    background: var(--psa);
+    color: #fff;
+    border-color: var(--psa);
+  }
+  .modal-err { font-size: 12px; color: var(--danger); margin-bottom: 8px; display: none; }
+
+  /* toast */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: #1a2230;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 999;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all .25s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* saved indicator */
+  .saved-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--saving);
+    display: inline-block;
+    margin-right: 4px;
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="header">
-    <div>
-      <h1>O₂ Operational Cost Dashboard</h1>
-      <div class="header-sub">Dynamic Cost-Benefit Analysis · Punjab, India · Adjust inputs to recalculate</div>
-    </div>
-    <div class="pill" id="month-label">APR 2024</div>
-  </div>
 
-  <div class="layout">
-    <!-- INPUTS -->
-    <div>
-      <div class="panel">
-        <div class="ptitle">Facility & Patient Load</div>
-        <div class="field">
-          <div class="frow"><label>Facility / District</label></div>
-          <select id="s-district" onchange="updateDistrict();calc()">
-            <option value="21.25">Amritsar (₹21.25/m³)</option>
-            <option value="20.99">Barnala (₹20.99/m³)</option>
-            <option value="19.34">Patiala — cheapest (₹19.34/m³)</option>
-            <option value="20.46">Jalandhar (₹20.46/m³)</option>
-            <option value="20.18">Ludhiana (₹20.18/m³)</option>
-            <option value="22.93">Fazilka — costliest (₹22.93/m³)</option>
-            <option value="21.53">Firozepur (₹21.53/m³)</option>
-            <option value="20.91">Hoshiarpur (₹20.91/m³)</option>
-          </select>
-        </div>
-        <div class="field">
-          <div class="frow"><label>IPD patients last month</label><span class="fval psa-c" id="v-ipd">1,202</span></div>
-          <input type="range" class="psa-r" min="100" max="5000" value="1202" step="10" oninput="syncFV('ipd',this.value,0,true);calc()">
-        </div>
-        <div class="field">
-          <div class="frow"><label>O₂ per patient-day (litres)</label><span class="fval psa-c" id="v-o2pp">3,230</span></div>
-          <input type="range" class="psa-r" min="500" max="8000" value="3230" step="100" oninput="syncFV('o2pp',this.value,0,true);calc()">
-        </div>
-      </div>
+<header>
+  <h1>🫧 Oxygen Cost Calculator — Find Your Cheapest Option</h1>
+  <span>Punjab, India · APR 2024 · Dummy data for demonstration</span>
+</header>
 
-      <div class="panel">
-        <div class="ptitle">PSA Plant</div>
-        <div class="field">
-          <div class="frow"><label>Run hours / day</label><span class="fval psa-c" id="v-psah">11</span></div>
-          <input type="range" class="psa-r" min="0" max="24" value="11" step="1" oninput="syncFV('psah',this.value);calc()">
-        </div>
-        <div class="field">
-          <div class="frow"><label>Plant capacity (LPM)</label><span class="fval psa-c" id="v-psacap">1,000</span></div>
-          <input type="range" class="psa-r" min="100" max="3000" value="1000" step="100" oninput="syncFV('psacap',this.value,0,true);calc()">
-        </div>
-        <div class="field">
-          <div class="frow"><label>Electricity cost (INR/kWh)</label><span class="fval psa-c" id="v-elec">9.0</span></div>
-          <input type="range" class="psa-r" min="3" max="20" value="9" step="0.5" oninput="syncFV('elec',this.value,1);calc()">
-        </div>
-        <div class="field">
-          <div class="frow"><label>Power consumption (kW)</label><span class="fval psa-c" id="v-kw">75</span></div>
-          <input type="range" class="psa-r" min="10" max="200" value="75" step="5" oninput="syncFV('kw',this.value);calc()">
-        </div>
-        <div class="field">
-          <div class="frow"><label>Fixed monthly costs — staff + maintenance (INR)</label><span class="fval psa-c" id="v-psafixed">68,908</span></div>
-          <input type="range" class="psa-r" min="10000" max="200000" value="68908" step="1000" oninput="syncFV('psafixed',this.value,0,true);calc()">
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="ptitle">LMO Tank</div>
-        <div class="field">
-          <div class="frow"><label>Run hours / day</label><span class="fval lmo-c" id="v-lmoh">1</span></div>
-          <input type="range" class="lmo-r" min="0" max="24" value="1" step="1" oninput="syncFV('lmoh',this.value);calc()">
-        </div>
-        <div class="field">
-          <div class="frow"><label>LMO price (INR/m³) — auto from district</label><span class="fval lmo-c" id="v-lmoprice">21.25</span></div>
-          <input type="range" class="lmo-r" min="15" max="35" value="21.25" step="0.25" id="lmo-price-slider" oninput="syncFV('lmoprice',this.value,2);calc()">
-        </div>
-        <div class="field">
-          <div class="frow"><label>LMO fixed costs/month — licensing etc. (INR)</label><span class="fval lmo-c" id="v-lmofixed">8,100</span></div>
-          <input type="range" class="lmo-r" min="0" max="30000" value="8100" step="100" oninput="syncFV('lmofixed',this.value,0,true);calc()">
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="ptitle">Cylinders</div>
-        <div class="field">
-          <div class="frow"><label>D-type cylinders used / month</label><span class="fval cyl-c" id="v-dcyl">35</span></div>
-          <input type="range" class="cyl-r" min="0" max="300" value="35" step="1" oninput="syncFV('dcyl',this.value);calc()">
-        </div>
-        <div class="field">
-          <div class="frow"><label>B-type cylinders used / month</label><span class="fval cyl-c" id="v-bcyl">10</span></div>
-          <input type="range" class="cyl-r" min="0" max="100" value="10" step="1" oninput="syncFV('bcyl',this.value);calc()">
-        </div>
-        <div class="field">
-          <div class="frow"><label>D-cylinder refill cost (INR)</label><span class="fval cyl-c" id="v-dcost">300</span></div>
-          <input type="range" class="cyl-r" min="100" max="800" value="300" step="10" oninput="syncFV('dcost',this.value);calc()">
-        </div>
-        <div class="field">
-          <div class="frow"><label>B-cylinder refill cost (INR)</label><span class="fval cyl-c" id="v-bcost">200</span></div>
-          <input type="range" class="cyl-r" min="50" max="400" value="200" step="10" oninput="syncFV('bcost',this.value);calc()">
-        </div>
-      </div>
-    </div>
-
-    <!-- OUTPUTS -->
-    <div>
-      <div class="verdict" id="verdict" style="background:#0d2a1a;border-color:#1a5c2e">
-        <div>
-          <div class="vl">Cheapest source (cost per litre)</div>
-          <div class="vv psa-c" id="v-cheapest">PSA Plant</div>
-        </div>
-        <div style="text-align:right">
-          <div class="vl">Potential monthly saving (all-PSA scenario)</div>
-          <div class="vv" id="v-saving">—</div>
-        </div>
-      </div>
-
-      <div class="stats">
-        <div class="stat">
-          <div class="sl">Total O₂ needed</div>
-          <div class="sv psa-c" id="o-need">3.88M L</div>
-          <div class="ss">this month (30 days)</div>
-        </div>
-        <div class="stat">
-          <div class="sl">Total monthly cost</div>
-          <div class="sv cyl-c" id="o-total">₹2.90L</div>
-          <div class="ss">current source mix</div>
-        </div>
-        <div class="stat">
-          <div class="sl">Optimal cost (PSA only)</div>
-          <div class="sv psa-c" id="o-optimal">₹2.32L</div>
-          <div class="ss">all load on PSA</div>
-        </div>
-      </div>
-
-      <!-- Source comparison -->
-      <div class="panel" style="margin-bottom:10px">
-        <div class="ptitle">Cost per litre — current settings</div>
-        <div class="src-block">
-          <div class="src-hdr">
-            <span class="src-name"><span class="dot" style="background:var(--psa)"></span>PSA Plant <span class="opt-badge" id="psa-badge">CHEAPEST</span></span>
-            <span class="src-cost psa-c" id="o-psaunit">₹0.051/L</span>
-          </div>
-          <div class="bar-bg"><div class="bar-fill" id="bar-psa" style="background:var(--psa)"></div></div>
-          <div class="src-meta"><span id="psa-meta">11h/day · ₹224,833/month</span><span id="psa-pct">82.7% of load</span></div>
-        </div>
-        <div class="src-block">
-          <div class="src-hdr">
-            <span class="src-name"><span class="dot" style="background:var(--cyl)"></span>Cylinders <span class="opt-badge" id="cyl-badge" style="display:none">CHEAPEST</span></span>
-            <span class="src-cost cyl-c" id="o-cylunit">₹0.040/L</span>
-          </div>
-          <div class="bar-bg"><div class="bar-fill" id="bar-cyl" style="background:var(--cyl)"></div></div>
-          <div class="src-meta"><span id="cyl-meta">35 D + 10 B cylinders · ₹23,288/month</span><span id="cyl-pct">9.7% of load</span></div>
-        </div>
-        <div class="src-block">
-          <div class="src-hdr">
-            <span class="src-name"><span class="dot" style="background:var(--lmo)"></span>LMO Tank <span class="opt-badge" id="lmo-badge" style="display:none">CHEAPEST</span></span>
-            <span class="src-cost lmo-c" id="o-lmounit">₹0.104/L</span>
-          </div>
-          <div class="bar-bg"><div class="bar-fill" id="bar-lmo" style="background:var(--lmo)"></div></div>
-          <div class="src-meta"><span id="lmo-meta">1h/day · ₹41,671/month</span><span id="lmo-pct">7.5% of load</span></div>
-        </div>
-      </div>
-
-      <!-- PSA chart -->
-      <div class="panel" style="margin-bottom:10px">
-        <div class="ptitle">PSA cost per litre vs run hours — vs LMO breakeven</div>
-        <div class="chart-wrap"><canvas id="psaChart"></canvas></div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <!-- Forecast -->
-        <div class="panel">
-          <div class="ptitle">IPD demand — monthly trend (base: DH Amritsar)</div>
-          <div class="forecast-wrap" id="forecast-bars"></div>
-          <div style="font-size:10px;color:var(--muted);margin-top:4px">
-            Next month forecast: <span style="color:var(--lmo);font-family:'IBM Plex Mono',monospace" id="forecast-next">1,486</span>
-          </div>
-        </div>
-        <!-- District table -->
-        <div class="panel">
-          <div class="ptitle">LMO pricing by district (INR/m³)</div>
-          <table class="district-table" id="district-table">
-            <thead><tr><th>District</th><th>Total</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- PSA run hours table -->
-      <div class="panel">
-        <div class="ptitle">PSA operational cost table — by run hours</div>
-        <table class="mini-t">
-          <thead><tr><th>Hrs/day</th><th>O₂ produced</th><th>Elec/month</th><th>Total OPEX</th><th>₹/litre</th><th>vs LMO</th></tr></thead>
-          <tbody id="hrs-table"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  <footer>O₂ Operational Cost Dashboard — Dynamic CBA Tool &nbsp;·&nbsp; Medical Oxygen Quantification &nbsp;·&nbsp; Dummy data for demonstration</footer>
+<!-- Data management toolbar -->
+<div class="data-toolbar">
+  <span class="tb-label">📂 Data</span>
+  <select class="preset-select" id="preset-select" onchange="loadPreset()">
+    <option value="">— Load a saved preset —</option>
+  </select>
+  <button class="tb-btn outline" onclick="openImport()">⬆ Import CSV</button>
+  <button class="tb-btn outline" onclick="openPaste()">📋 Paste data</button>
+  <div class="tb-divider"></div>
+  <button class="tb-btn success" onclick="saveSettings()">💾 Save settings</button>
+  <button class="tb-btn outline" onclick="openSavePreset()">🔖 Save as preset…</button>
+  <button class="tb-btn danger" onclick="clearSaved()">✕ Clear saved</button>
 </div>
 
+<!-- CSV import modal -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <h2>⬆ Import from CSV file</h2>
+    <p>Upload a CSV with one header row and one or more data rows. Columns (in order):<br><br>
+    <code style="font-size:11px">lmo_price, patients, o2_per_patient_day, psa_hours, psa_lpm, elec_cost, psa_kw, psa_fixed, lmo_hours, lmo_fixed, d_cyls, b_cyls, d_cost, b_cost</code><br><br>
+    If multiple rows are present, the first data row will be loaded.</p>
+    <input type="file" id="csv-file" accept=".csv" style="margin-bottom:12px;font-size:13px;width:100%" />
+    <div class="modal-err" id="csv-err"></div>
+    <div class="modal-actions">
+      <button onclick="closeModal('import-modal')">Cancel</button>
+      <button class="apply" onclick="importCSV()">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- Paste modal -->
+<div class="modal-overlay" id="paste-modal">
+  <div class="modal">
+    <h2>📋 Paste data row</h2>
+    <p>Paste a single row of comma- or tab-separated values (e.g. copied from Excel or Google Sheets). Values in order:<br><br>
+    <code style="font-size:11px">lmo_price, patients, o2_per_patient_day, psa_hours, psa_lpm, elec_cost, psa_kw, psa_fixed, lmo_hours, lmo_fixed, d_cyls, b_cyls, d_cost, b_cost</code></p>
+    <textarea id="paste-area" placeholder="e.g.  21.25, 1202, 3230, 11, 1000, 9, 75, 68908, 1, 8100, 35, 10, 300, 200"></textarea>
+    <div class="modal-err" id="paste-err"></div>
+    <div class="modal-actions">
+      <button onclick="closeModal('paste-modal')">Cancel</button>
+      <button class="apply" onclick="applyPaste()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Save preset modal -->
+<div class="modal-overlay" id="preset-modal">
+  <div class="modal">
+    <h2>🔖 Save as preset</h2>
+    <p>Give this configuration a name so you can reload it anytime from the preset selector at the top.</p>
+    <input type="text" id="preset-name" placeholder="e.g. April 2024 — Amritsar"
+      style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;margin-bottom:12px;font-family:'IBM Plex Sans',sans-serif" />
+    <div class="modal-actions">
+      <button onclick="closeModal('preset-modal')">Cancel</button>
+      <button class="apply" onclick="confirmSavePreset()">Save preset</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<!-- Recommendation banner -->
+<div id="rec-banner">
+  <div class="icon">💡</div>
+  <div>
+    <div class="label">Recommendation</div>
+    <div class="msg" id="rec-msg">Adjust inputs to see your personalised recommendation.</div>
+  </div>
+</div>
+
+<div class="shell">
+
+  <!-- ── LEFT: INPUTS ── -->
+  <aside>
+
+    <div class="section-label">Facility & Patient Load</div>
+
+    <div class="field">
+      <label>Facility / District
+        <span class="tip" data-tip="Each district has a preset LMO price from procurement data">?</span>
+      </label>
+      <select id="district" onchange="calc()">
+        <option value="21.25" data-name="Amritsar">Amritsar (₹21.25/m³)</option>
+        <option value="20.99" data-name="Barnala">Barnala (₹20.99/m³)</option>
+        <option value="19.34" data-name="Patiala">Patiala — cheapest (₹19.34/m³)</option>
+        <option value="20.46" data-name="Jalandhar">Jalandhar (₹20.46/m³)</option>
+        <option value="20.18" data-name="Ludhiana">Ludhiana (₹20.18/m³)</option>
+        <option value="22.93" data-name="Fazilka">Fazilka — costliest (₹22.93/m³)</option>
+        <option value="21.53" data-name="Firozepur">Firozepur (₹21.53/m³)</option>
+        <option value="20.91" data-name="Hoshiarpur">Hoshiarpur (₹20.91/m³)</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>IPD patients last month
+        <span class="tip" data-tip="Inpatient Department: patients admitted overnight">?</span>
+      </label>
+      <input type="number" id="patients" value="1202" onchange="calc()" />
+    </div>
+
+    <div class="field">
+      <label>O₂ per patient-day (litres)
+        <span class="tip" data-tip="Average litres of oxygen consumed per patient per day">?</span>
+      </label>
+      <input type="number" id="o2ppd" value="3230" onchange="calc()" />
+    </div>
+
+    <!-- PSA section -->
+    <div class="section-label"><span class="dot psa"></span> PSA Plant
+      <span style="font-size:10px;color:var(--muted);margin-left:6px;text-transform:none;letter-spacing:0">On-site oxygen generator</span>
+    </div>
+
+    <div class="field">
+      <label>Run hours / day
+        <span class="tip" data-tip="How many hours per day the PSA machine is switched on">?</span>
+      </label>
+      <input type="number" id="psa-hours" value="11" min="0" max="24" onchange="calc()" />
+    </div>
+
+    <label class="adv-toggle" onclick="this.nextElementSibling.classList.toggle('open')">
+      ▸ Advanced / Edit defaults
+    </label>
+    <div class="adv-fields" id="psa-adv">
+      <div class="field">
+        <label>Plant capacity (LPM)
+          <span class="tip" data-tip="Litres Per Minute the plant can produce at full capacity">?</span>
+        </label>
+        <input type="number" id="psa-lpm" value="1000" onchange="calc()" />
+      </div>
+      <div class="field">
+        <label>Electricity cost (₹/kWh)
+          <span class="tip" data-tip="Your facility's electricity tariff per kilowatt-hour">?</span>
+        </label>
+        <input type="number" id="elec-cost" value="9" step="0.1" onchange="calc()" />
+      </div>
+      <div class="field">
+        <label>Power consumption (kW)
+          <span class="tip" data-tip="How many kilowatts the PSA plant draws when running">?</span>
+        </label>
+        <input type="number" id="psa-kw" value="75" onchange="calc()" />
+      </div>
+      <div class="field">
+        <label>Fixed costs/month — staff + maintenance (₹)
+          <span class="tip" data-tip="Monthly fixed costs regardless of run hours: staff salary, servicing, etc.">?</span>
+        </label>
+        <input type="number" id="psa-fixed" value="68908" onchange="calc()" />
+      </div>
+    </div>
+
+    <!-- LMO section -->
+    <div class="section-label"><span class="dot lmo"></span> LMO Tank
+      <span style="font-size:10px;color:var(--muted);margin-left:6px;text-transform:none;letter-spacing:0">Bulk liquid oxygen, delivered by tanker</span>
+    </div>
+
+    <div class="field">
+      <label>Run hours / day
+        <span class="tip" data-tip="Hours per day the LMO system is actively supplying oxygen">?</span>
+      </label>
+      <input type="number" id="lmo-hours" value="1" min="0" max="24" onchange="calc()" />
+    </div>
+
+    <label class="adv-toggle" onclick="this.nextElementSibling.classList.toggle('open')">
+      ▸ Advanced / Edit defaults
+    </label>
+    <div class="adv-fields">
+      <div class="field">
+        <label>LMO price (₹/m³) — auto from district</label>
+        <input type="number" id="lmo-price" value="21.25" step="0.01" onchange="calc()" />
+      </div>
+      <div class="field">
+        <label>Fixed costs/month — licensing etc. (₹)
+          <span class="tip" data-tip="Monthly licensing, safety compliance, and storage fees">?</span>
+        </label>
+        <input type="number" id="lmo-fixed" value="8100" onchange="calc()" />
+      </div>
+    </div>
+
+    <!-- Cylinders section -->
+    <div class="section-label"><span class="dot cyl"></span> Cylinders
+      <span style="font-size:10px;color:var(--muted);margin-left:6px;text-transform:none;letter-spacing:0">Portable compressed gas cylinders</span>
+    </div>
+
+    <div class="field">
+      <label>D-type cylinders used / month
+        <span class="tip" data-tip="D-type: large cylinders (~7,000 L each)">?</span>
+      </label>
+      <input type="number" id="d-cyls" value="35" onchange="calc()" />
+    </div>
+    <div class="field">
+      <label>B-type cylinders used / month
+        <span class="tip" data-tip="B-type: small cylinders (~1,700 L each)">?</span>
+      </label>
+      <input type="number" id="b-cyls" value="10" onchange="calc()" />
+    </div>
+
+    <label class="adv-toggle" onclick="this.nextElementSibling.classList.toggle('open')">
+      ▸ Advanced / Edit defaults
+    </label>
+    <div class="adv-fields">
+      <div class="field">
+        <label>D-cylinder refill cost (₹)</label>
+        <input type="number" id="d-cost" value="300" onchange="calc()" />
+      </div>
+      <div class="field">
+        <label>B-cylinder refill cost (₹)</label>
+        <input type="number" id="b-cost" value="200" onchange="calc()" />
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── RIGHT: OUTPUTS ── -->
+  <main>
+
+    <!-- Summary cards -->
+    <div class="summary-row">
+      <div class="sum-card">
+        <div class="label">Total O₂ needed this month</div>
+        <div class="value" id="total-o2">—</div>
+        <div class="sub">litres (30 days)</div>
+      </div>
+      <div class="sum-card">
+        <div class="label">Current monthly cost</div>
+        <div class="value" id="total-cost">—</div>
+        <div class="sub">all sources combined</div>
+      </div>
+      <div class="sum-card">
+        <div class="label">Optimal cost (PSA only)</div>
+        <div class="value" id="optimal-cost">—</div>
+        <div class="sub">if all load on PSA</div>
+      </div>
+      <div class="sum-card highlight">
+        <div class="label">💰 Potential monthly saving</div>
+        <div class="value" id="saving">—</div>
+        <div class="sub" id="saving-sub">Switch more load to PSA</div>
+      </div>
+    </div>
+
+    <!-- Source cards -->
+    <div class="sources-row">
+
+      <div class="src-card" id="card-psa">
+        <div class="src-header">
+          <div class="src-name"><span class="dot psa"></span> PSA Plant</div>
+          <span class="badge" id="badge-psa">—</span>
+        </div>
+        <div class="src-desc">On-site generator — makes oxygen from air using electricity</div>
+        <div class="src-cost psa" id="psa-cpl">—</div>
+        <div class="src-meta">
+          <span id="psa-meta1">—</span>
+          <span id="psa-meta2">—</span>
+        </div>
+        <div class="load-bar-wrap">
+          <div class="load-bar-label"><span>Share of total load</span><span id="psa-pct">—</span></div>
+          <div class="load-bar"><div class="load-bar-fill psa" id="psa-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div class="src-card" id="card-cyl">
+        <div class="src-header">
+          <div class="src-name"><span class="dot cyl"></span> Cylinders</div>
+          <span class="badge" id="badge-cyl">—</span>
+        </div>
+        <div class="src-desc">Portable compressed gas — easy to use, but expensive at scale</div>
+        <div class="src-cost cyl" id="cyl-cpl">—</div>
+        <div class="src-meta">
+          <span id="cyl-meta1">—</span>
+          <span id="cyl-meta2">—</span>
+        </div>
+        <div class="load-bar-wrap">
+          <div class="load-bar-label"><span>Share of total load</span><span id="cyl-pct">—</span></div>
+          <div class="load-bar"><div class="load-bar-fill cyl" id="cyl-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div class="src-card" id="card-lmo">
+        <div class="src-header">
+          <div class="src-name"><span class="dot lmo"></span> LMO Tank</div>
+          <span class="badge" id="badge-lmo">—</span>
+        </div>
+        <div class="src-desc">Liquid oxygen delivered by tanker — good volume, variable pricing</div>
+        <div class="src-cost lmo" id="lmo-cpl">—</div>
+        <div class="src-meta">
+          <span id="lmo-meta1">—</span>
+          <span id="lmo-meta2">—</span>
+        </div>
+        <div class="load-bar-wrap">
+          <div class="load-bar-label"><span>Share of total load</span><span id="lmo-pct">—</span></div>
+          <div class="load-bar"><div class="load-bar-fill lmo" id="lmo-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-row">
+      <div class="chart-box">
+        <div class="chart-title">PSA cost per litre vs run hours</div>
+        <div class="chart-sub">▲ Run PSA past the blue dot and it beats LMO on cost</div>
+        <canvas id="psa-chart" height="180"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">LMO price by district (₹/m³)</div>
+        <div class="chart-sub">Your selected district is highlighted</div>
+        <canvas id="district-chart" height="180"></canvas>
+      </div>
+    </div>
+
+    <!-- PSA table -->
+    <div class="table-box">
+      <div class="chart-title" style="margin-bottom:3px">PSA operational cost — by run hours</div>
+      <div class="chart-sub" style="margin-bottom:12px">Your current setting is highlighted. "vs LMO" shows how PSA compares at each level.</div>
+      <table id="psa-table">
+        <thead>
+          <tr>
+            <th>Hours/day</th>
+            <th>O₂ produced (L)</th>
+            <th>Electricity/month (₹)</th>
+            <th>Total OPEX (₹)</th>
+            <th>Cost/litre (₹)</th>
+            <th>vs LMO</th>
+          </tr>
+        </thead>
+        <tbody id="psa-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Glossary -->
+    <div class="glossary">
+      <h3>📖 Glossary — key terms explained</h3>
+      <div class="glossary-grid">
+        <div class="glossary-item"><div class="term">PSA Plant</div><div class="def">Pressure Swing Adsorption — a machine that makes oxygen on-site from ambient air using electricity.</div></div>
+        <div class="glossary-item"><div class="term">LMO</div><div class="def">Liquid Medical Oxygen — oxygen stored at very low temperature in a tank, refilled by tanker deliveries.</div></div>
+        <div class="glossary-item"><div class="term">D / B Cylinder</div><div class="def">Portable compressed oxygen cylinders. D-type holds ~7,000 L; B-type holds ~1,700 L.</div></div>
+        <div class="glossary-item"><div class="term">Cost per litre (₹/L)</div><div class="def">The total monthly cost of a source divided by the litres it produces — the key comparison metric.</div></div>
+        <div class="glossary-item"><div class="term">LPM</div><div class="def">Litres Per Minute — how fast the PSA plant produces oxygen.</div></div>
+        <div class="glossary-item"><div class="term">OPEX</div><div class="def">Operational Expenditure — all running costs combined (electricity + staff + maintenance + fixed fees).</div></div>
+        <div class="glossary-item"><div class="term">IPD</div><div class="def">Inpatient Department — patients admitted overnight, who are the primary oxygen consumers.</div></div>
+        <div class="glossary-item"><div class="term">kWh</div><div class="def">Kilowatt-hour — a unit of electricity; multiply kW by hours to get kWh consumed.</div></div>
+        <div class="glossary-item"><div class="term">m³</div><div class="def">Cubic metre of gas (= 1,000 litres). LMO is priced per m³.</div></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer>O₂ Operational Cost Dashboard — Dynamic CBA Tool · Medical Oxygen Quantification · Dummy data for demonstration</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
-const districts = [
-  {name:'Amritsar',price:21.25},{name:'Barnala',price:20.99},{name:'Patiala',price:19.34},
-  {name:'Jalandhar',price:20.46},{name:'Ludhiana',price:20.18},{name:'Fazilka',price:22.93},
-  {name:'Firozepur',price:21.53},{name:'Hoshiarpur',price:20.91},{name:'Mansa',price:20.99},
-  {name:'Patiala',price:19.34},{name:'Sangrur',price:20.99},{name:'Tarn Taran',price:21.69}
+// ── CONSTANTS ──
+const D_LITRES = 7000;
+const B_LITRES = 1700;
+const DAYS = 30;
+
+const DISTRICTS = [
+  { name: "Amritsar",   lmo: 21.25 },
+  { name: "Barnala",    lmo: 20.99 },
+  { name: "Patiala",    lmo: 19.34 },
+  { name: "Jalandhar",  lmo: 20.46 },
+  { name: "Ludhiana",   lmo: 20.18 },
+  { name: "Fazilka",    lmo: 22.93 },
+  { name: "Firozepur",  lmo: 21.53 },
+  { name: "Hoshiarpur", lmo: 20.91 },
 ];
 
-const ipdData = [1413,1383,1107,1120,1141,1186,1202,1387,1379,1656,1776,1667];
-const months = ['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'];
+let psaChart, districtChart;
 
-function buildForecast(){
-  const container = document.getElementById('forecast-bars');
-  container.innerHTML='';
-  const max = Math.max(...ipdData);
-  months.forEach((m,i)=>{
-    const pct = (ipdData[i]/max)*100;
-    const isCur = m==='Apr';
-    const col = document.createElement('div');
-    col.className='fc-col';
-    col.innerHTML=`<div class="fc-bar" style="height:${pct}%;background:${isCur?'#58a6ff':'#30363d'}"></div><div class="fc-lbl">${m}</div>`;
-    container.appendChild(col);
-  });
-  document.getElementById('forecast-next').textContent = '1,486';
+function fmt(n) {
+  if (n >= 1e6) return (n/1e6).toFixed(2)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+  return n.toFixed(0);
+}
+function fmtINR(n) {
+  if (n >= 1e5) return '₹'+(n/1e5).toFixed(2)+'L';
+  if (n >= 1e3) return '₹'+(n/1e3).toFixed(1)+'K';
+  return '₹'+n.toFixed(0);
 }
 
-function buildDistrictTable(selectedPrice){
-  const tbody = document.querySelector('#district-table tbody');
-  tbody.innerHTML='';
-  const sorted = [...districts].sort((a,b)=>a.price-b.price);
-  sorted.forEach(d=>{
-    const isSelected = Math.abs(d.price - selectedPrice) < 0.01;
-    const tr = document.createElement('tr');
-    if(isSelected) tr.style.background='#0c1e35';
-    tr.innerHTML=`<td class="${isSelected?'district-selected':''}">${d.name}${isSelected?' ★':''}</td><td class="${isSelected?'district-selected':''}" style="font-family:'IBM Plex Mono',monospace">₹${d.price.toFixed(2)}</td>`;
-    tbody.appendChild(tr);
-  });
+function getInputs() {
+  return {
+    lmoPrice: parseFloat(document.getElementById('district').value),
+    districtIdx: document.getElementById('district').selectedIndex,
+    patients: parseFloat(document.getElementById('patients').value) || 0,
+    o2ppd: parseFloat(document.getElementById('o2ppd').value) || 0,
+    psaHours: parseFloat(document.getElementById('psa-hours').value) || 0,
+    psaLPM: parseFloat(document.getElementById('psa-lpm').value) || 1000,
+    elecCost: parseFloat(document.getElementById('elec-cost').value) || 9,
+    psaKW: parseFloat(document.getElementById('psa-kw').value) || 75,
+    psaFixed: parseFloat(document.getElementById('psa-fixed').value) || 68908,
+    lmoHours: parseFloat(document.getElementById('lmo-hours').value) || 0,
+    lmoFixed: parseFloat(document.getElementById('lmo-fixed').value) || 8100,
+    dCyls: parseFloat(document.getElementById('d-cyls').value) || 0,
+    bCyls: parseFloat(document.getElementById('b-cyls').value) || 0,
+    dCost: parseFloat(document.getElementById('d-cost').value) || 300,
+    bCost: parseFloat(document.getElementById('b-cost').value) || 200,
+  };
 }
 
-function updateDistrict(){
-  const price = parseFloat(document.getElementById('s-district').value);
-  document.getElementById('v-lmoprice').textContent = price.toFixed(2);
-  document.getElementById('lmo-price-slider').value = price;
-  buildDistrictTable(price);
+function psaCost(hrs, inp) {
+  const litres = inp.psaLPM * 60 * hrs * DAYS;
+  const elec = inp.psaKW * hrs * DAYS * inp.elecCost;
+  const total = elec + inp.psaFixed;
+  const cpl = litres > 0 ? total / litres : Infinity;
+  return { litres, elec, total, cpl };
 }
 
-function syncFV(id,val,dp,comma){
-  let dp2 = dp!==undefined?dp:0;
-  let n = parseFloat(val);
-  let s = comma ? Math.round(n).toLocaleString('en-IN') : n.toFixed(dp2);
-  document.getElementById('v-'+id).textContent = s;
-}
+function calc() {
+  const inp = getInputs();
 
-function fmtINR(n){
-  if(n>=100000) return '₹'+(n/100000).toFixed(2)+'L';
-  if(n>=1000) return '₹'+(n/1000).toFixed(1)+'K';
-  return '₹'+Math.round(n);
-}
+  // Sync LMO price from district
+  document.getElementById('lmo-price').value = inp.lmoPrice;
 
-let psaChart;
-function calc(){
-  const ipd = parseInt(document.getElementById('v-ipd').textContent.replace(/,/g,''));
-  const o2pp = parseInt(document.getElementById('v-o2pp').textContent.replace(/,/g,''));
-  const psaH = parseInt(document.getElementById('v-psah').textContent);
-  const psaCap = parseInt(document.getElementById('v-psacap').textContent.replace(/,/g,''));
-  const elec = parseFloat(document.getElementById('v-elec').textContent);
-  const kw = parseInt(document.getElementById('v-kw').textContent);
-  const psaFixed = parseInt(document.getElementById('v-psafixed').textContent.replace(/,/g,''));
-  const lmoH = parseInt(document.getElementById('v-lmoh').textContent);
-  const lmoPrice = parseFloat(document.getElementById('v-lmoprice').textContent);
-  const lmoFixed = parseInt(document.getElementById('v-lmofixed').textContent.replace(/,/g,''));
-  const dCyl = parseInt(document.getElementById('v-dcyl').textContent);
-  const bCyl = parseInt(document.getElementById('v-bcyl').textContent);
-  const dCost = parseInt(document.getElementById('v-dcost').textContent);
-  const bCost = parseInt(document.getElementById('v-bcost').textContent);
-
-  const totalO2 = ipd * 30 * o2pp;
-  const psaFlow = psaCap * 0.7;
+  // Total O2 demand
+  const totalO2 = inp.patients * inp.o2ppd * DAYS;
 
   // PSA
-  const psaO2 = psaFlow * 60 * psaH * 30;
-  const psaElec = kw * psaH * 30 * elec;
-  const psaCost = psaFixed + psaElec;
-  const psaUnit = psaO2 > 0 ? psaCost / psaO2 : 0;
-
-  // LMO
-  const lmoO2 = psaFlow * 60 * lmoH * 30;
-  const lmoM3 = lmoO2 / 1000;
-  const lmoCost = lmoM3 * lmoPrice * 1.12 + lmoFixed;
-  const lmoUnit = lmoO2 > 0 ? lmoCost / lmoO2 : 0;
+  const psa = psaCost(inp.psaHours, inp);
 
   // Cylinders
-  const cylO2 = dCyl * 7500 + bCyl * 1500;
-  const cylCost = dCyl * dCost + bCyl * bCost;
-  const cylUnit = cylO2 > 0 ? cylCost / cylO2 : 0;
+  const cylLitres = inp.dCyls * D_LITRES + inp.bCyls * B_LITRES;
+  const cylCost = inp.dCyls * inp.dCost + inp.bCyls * inp.bCost;
+  const cylCpl = cylLitres > 0 ? cylCost / cylLitres : Infinity;
 
-  const totalCost = psaCost + lmoCost + cylCost;
+  // LMO
+  const lmoLitres = inp.psaLPM * 60 * inp.lmoHours * DAYS;
+  const lmoVolM3 = lmoLitres / 1000;
+  const lmoVarCost = lmoVolM3 * inp.lmoPrice;
+  const lmoCost = lmoVarCost + inp.lmoFixed;
+  const lmoCpl = lmoLitres > 0 ? lmoCost / lmoLitres : Infinity;
+  const lmoCplPerL = inp.lmoPrice / 1000; // pure variable rate
 
-  // Optimal
-  const optH = Math.min(24, Math.ceil(totalO2/(psaFlow*60*30)));
-  const optCost = psaFixed + kw * optH * 30 * elec;
-  const saving = totalCost - optCost;
+  // Total cost & load
+  const totalCost = psa.total + cylCost + lmoCost;
+  const totalLoad = psa.litres + cylLitres + lmoLitres;
 
-  // Cheapest
-  const srcs = [{name:'PSA Plant',unit:psaUnit,col:'psa-c'},{name:'LMO Tank',unit:lmoUnit,col:'lmo-c'},{name:'Cylinders',unit:cylUnit,col:'cyl-c'}];
-  const cheapest = srcs.sort((a,b)=>a.unit-b.unit)[0];
+  const psaPct  = totalLoad > 0 ? (psa.litres  / totalLoad * 100) : 0;
+  const cylPct  = totalLoad > 0 ? (cylLitres   / totalLoad * 100) : 0;
+  const lmoPct  = totalLoad > 0 ? (lmoLitres   / totalLoad * 100) : 0;
 
-  document.getElementById('v-cheapest').textContent = cheapest.name;
-  document.getElementById('v-cheapest').className = 'vv '+cheapest.col;
-  document.getElementById('v-saving').textContent = saving>0 ? fmtINR(saving)+' saving/month' : 'Already optimal';
+  // Optimal (PSA only)
+  const optimalPsa = psaCost(24, inp); // max run
+  const optimalCost = optimalPsa.total;
+  const saving = totalCost - optimalCost;
 
-  document.getElementById('o-need').textContent = (totalO2/1e6).toFixed(2)+'M L';
-  document.getElementById('o-total').textContent = fmtINR(totalCost);
-  document.getElementById('o-optimal').textContent = fmtINR(optCost);
+  // ── UPDATE SUMMARY ──
+  document.getElementById('total-o2').textContent   = fmt(totalO2) + ' L';
+  document.getElementById('total-cost').textContent = fmtINR(totalCost);
+  document.getElementById('optimal-cost').textContent = fmtINR(optimalCost);
+  document.getElementById('saving').textContent     = saving > 0 ? fmtINR(saving) : '₹0';
+  document.getElementById('saving-sub').textContent = saving > 0
+    ? `By running PSA 24h/day instead of ${inp.psaHours}h/day`
+    : 'PSA is already running optimally';
 
-  const maxU = Math.max(psaUnit, lmoUnit, cylUnit, 0.001);
-  document.getElementById('o-psaunit').textContent = '₹'+psaUnit.toFixed(3)+'/L';
-  document.getElementById('o-lmounit').textContent = '₹'+lmoUnit.toFixed(3)+'/L';
-  document.getElementById('o-cylunit').textContent = '₹'+cylUnit.toFixed(3)+'/L';
+  // ── BADGES — only 1 "cheapest" ──
+  const cpls = [
+    { key: 'psa', cpl: psa.cpl },
+    { key: 'cyl', cpl: cylCpl },
+    { key: 'lmo', cpl: lmoCpl },
+  ].sort((a,b) => a.cpl - b.cpl);
 
-  document.getElementById('bar-psa').style.width = Math.min(100,(psaUnit/maxU)*100)+'%';
-  document.getElementById('bar-lmo').style.width = Math.min(100,(lmoUnit/maxU)*100)+'%';
-  document.getElementById('bar-cyl').style.width = Math.min(100,(cylUnit/maxU)*100)+'%';
+  const rankMap = {};
+  cpls.forEach((x, i) => rankMap[x.key] = i);
 
-  const tot = (psaO2+lmoO2+cylO2)||1;
-  document.getElementById('psa-pct').textContent = (psaO2/tot*100).toFixed(1)+'% of load';
-  document.getElementById('lmo-pct').textContent = (lmoO2/tot*100).toFixed(1)+'% of load';
-  document.getElementById('cyl-pct').textContent = (cylO2/tot*100).toFixed(1)+'% of load';
+  const badgeLabels = ['Cheapest ✓', '2nd cheapest', 'Most costly'];
+  const badgeClasses = ['cheapest', 'mid', 'costly'];
 
-  document.getElementById('psa-meta').textContent = psaH+'h/day · '+fmtINR(psaCost)+'/month';
-  document.getElementById('lmo-meta').textContent = lmoH+'h/day · '+fmtINR(lmoCost)+'/month';
-  document.getElementById('cyl-meta').textContent = dCyl+'D + '+bCyl+'B cyl · '+fmtINR(cylCost)+'/month';
+  ['psa','cyl','lmo'].forEach(k => {
+    const r = rankMap[k];
+    const el = document.getElementById('badge-'+k);
+    el.textContent = badgeLabels[r];
+    el.className = 'badge ' + badgeClasses[r];
+  });
 
-  ['psa','lmo','cyl'].forEach(s=>document.getElementById(s+'-badge').style.display='none');
-  const badgeMap = {'PSA Plant':'psa','LMO Tank':'lmo','Cylinders':'cyl'};
-  document.getElementById(badgeMap[cheapest.name]+'-badge').style.display='';
+  // ── PSA CARD ──
+  document.getElementById('psa-cpl').textContent = psa.cpl < Infinity ? '₹'+psa.cpl.toFixed(3)+'/L' : 'N/A';
+  document.getElementById('psa-meta1').textContent = `${inp.psaHours}h/day · ${fmtINR(psa.total)}/month`;
+  document.getElementById('psa-meta2').textContent = `Produces ${fmt(psa.litres)} L`;
+  document.getElementById('psa-pct').textContent   = psaPct.toFixed(1)+'%';
+  document.getElementById('psa-bar').style.width    = psaPct+'%';
 
-  // Chart
-  const hLabels=[], costLine=[], lmoLine=[];
-  for(let h=1;h<=24;h++){
-    const o2h = psaFlow*60*h*30;
-    const tc = psaFixed + kw*h*30*elec;
-    hLabels.push(h+'h');
-    costLine.push(+(tc/o2h).toFixed(4));
-    lmoLine.push(+lmoUnit.toFixed(4));
+  // ── CYL CARD ──
+  document.getElementById('cyl-cpl').textContent   = cylCpl < Infinity ? '₹'+cylCpl.toFixed(3)+'/L' : 'N/A';
+  document.getElementById('cyl-meta1').textContent = `${inp.dCyls} D + ${inp.bCyls} B cylinders`;
+  document.getElementById('cyl-meta2').textContent = `${fmtINR(cylCost)}/month · ${fmt(cylLitres)} L`;
+  document.getElementById('cyl-pct').textContent   = cylPct.toFixed(1)+'%';
+  document.getElementById('cyl-bar').style.width    = cylPct+'%';
+
+  // ── LMO CARD ──
+  document.getElementById('lmo-cpl').textContent   = lmoLitres > 0 ? '₹'+lmoCpl.toFixed(3)+'/L' : 'N/A (0h)';
+  document.getElementById('lmo-meta1').textContent = `${inp.lmoHours}h/day · ${fmtINR(lmoCost)}/month`;
+  document.getElementById('lmo-meta2').textContent = `Delivers ${fmt(lmoLitres)} L`;
+  document.getElementById('lmo-pct').textContent   = lmoPct.toFixed(1)+'%';
+  document.getElementById('lmo-bar').style.width    = lmoPct+'%';
+
+  // ── RECOMMENDATION BANNER ──
+  const cheapestSrc = cpls[0].key;
+  const srcNames = { psa: 'PSA Plant', cyl: 'Cylinders', lmo: 'LMO Tank' };
+  let recMsg = '';
+  if (saving > 1000) {
+    recMsg = `You could save ${fmtINR(saving)}/month by running PSA 24h/day. Currently PSA is cheapest at ₹${psa.cpl.toFixed(3)}/L vs LMO at ₹${lmoCplPerL.toFixed(3)}/L.`;
+  } else if (cheapestSrc === 'psa') {
+    recMsg = `PSA Plant is your cheapest source at ₹${psa.cpl.toFixed(3)}/L — maximise its run hours to reduce costs further.`;
+  } else if (cheapestSrc === 'cyl') {
+    recMsg = `Cylinders are cheapest right now (₹${cylCpl.toFixed(3)}/L), but this is unusual at scale — verify PSA fixed costs are set correctly.`;
+  } else {
+    recMsg = `LMO is cheapest at ₹${lmoCpl.toFixed(3)}/L — consider running PSA longer to see if it can beat LMO at your electricity rate.`;
   }
-  if(psaChart) psaChart.destroy();
-  psaChart = new Chart(document.getElementById('psaChart'),{
-    type:'line',
-    data:{labels:hLabels,datasets:[
-      {label:'PSA ₹/L',data:costLine,borderColor:'#3fb950',borderWidth:2,pointRadius:0,tension:0.3,fill:false},
-      {label:'LMO ₹/L',data:lmoLine,borderColor:'#58a6ff',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false}
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{color:'#7d8590',font:{family:'IBM Plex Mono',size:10},boxWidth:10,padding:10}}},
-      scales:{
-        x:{grid:{color:'#1c2330'},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:9}}},
-        y:{grid:{color:'#1c2330'},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:9},callback:v=>'₹'+v.toFixed(3)}}
+  document.getElementById('rec-msg').textContent = recMsg;
+
+  // ── PSA CHART ──
+  const chartHours = Array.from({length:25},(_,i)=>i);
+  const psaCpls = chartHours.map(h => {
+    const r = psaCost(h, inp);
+    return r.litres > 0 ? r.cpl : null;
+  });
+  const lmoLine = chartHours.map(() => lmoCplPerL);
+
+  // Breakeven
+  let breakeven = null;
+  for (let h = 1; h <= 24; h++) {
+    if (psaCost(h,inp).cpl <= lmoCplPerL) { breakeven = h; break; }
+  }
+
+  if (psaChart) psaChart.destroy();
+  psaChart = new Chart(document.getElementById('psa-chart'), {
+    type: 'line',
+    data: {
+      labels: chartHours,
+      datasets: [
+        {
+          label: 'PSA ₹/L',
+          data: psaCpls,
+          borderColor: '#1a6fdb',
+          backgroundColor: 'rgba(26,111,219,0.08)',
+          tension: 0.4,
+          fill: true,
+          pointRadius: chartHours.map(h => h === inp.psaHours ? 6 : 2),
+          pointBackgroundColor: chartHours.map(h => h === inp.psaHours ? '#1a6fdb' : 'rgba(26,111,219,0.3)'),
+        },
+        {
+          label: 'LMO ₹/L (breakeven)',
+          data: lmoLine,
+          borderColor: '#d97706',
+          borderDash: [5,4],
+          pointRadius: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.label + ': ₹' + (ctx.parsed.y||0).toFixed(4) + '/L'
+          }
+        },
+        annotation: breakeven ? {
+          annotations: {
+            line1: {
+              type: 'line', xMin: breakeven, xMax: breakeven,
+              borderColor: '#16a34a', borderWidth: 1.5, borderDash: [3,3],
+              label: { content: `Breakeven @ ${breakeven}h`, enabled: true, position: 'start', font:{size:10} }
+            }
+          }
+        } : {}
+      },
+      scales: {
+        x: { title: { display: true, text: 'Hours/day', font:{size:11} } },
+        y: { title: { display: true, text: '₹ per litre', font:{size:11} } }
       }
     }
   });
 
-  // Table
-  const tbody = document.getElementById('hrs-table');
-  tbody.innerHTML='';
-  [2,4,6,8,10,11,12,16,20,24].forEach(h=>{
-    const o2h = psaFlow*60*h*30;
-    const ec = kw*h*30*elec;
-    const tc = psaFixed+ec;
-    const ul = tc/o2h;
-    const vsLMO = ul<lmoUnit?`<span class="psa-c">PSA ✓</span>`:`<span class="lmo-c">LMO ✓</span>`;
-    const isCur = h===psaH;
-    const tr = document.createElement('tr');
-    if(isCur) tr.className='winner-row';
-    tr.innerHTML=`<td>${h}h${isCur?' ★':''}</td><td>${(o2h/1e6).toFixed(2)}M L</td><td>${fmtINR(ec)}</td><td>${fmtINR(tc)}</td><td>₹${ul.toFixed(3)}</td><td>${vsLMO}</td>`;
-    tbody.appendChild(tr);
+  // ── DISTRICT CHART ──
+  if (districtChart) districtChart.destroy();
+  const selectedIdx = inp.districtIdx;
+  districtChart = new Chart(document.getElementById('district-chart'), {
+    type: 'bar',
+    data: {
+      labels: DISTRICTS.map(d => d.name),
+      datasets: [{
+        label: 'LMO price (₹/m³)',
+        data: DISTRICTS.map(d => d.lmo),
+        backgroundColor: DISTRICTS.map((d,i) => i === selectedIdx ? '#d97706' : 'rgba(217,119,6,0.25)'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 18, title: { display: true, text: '₹/m³', font:{size:11} } }
+      }
+    }
   });
 
-  buildDistrictTable(lmoPrice);
+  // ── PSA TABLE ──
+  const tbody = document.getElementById('psa-tbody');
+  tbody.innerHTML = '';
+  [2,4,6,8,10,11,12,14,16,18,20,22,24].forEach(h => {
+    const r = psaCost(h, inp);
+    const cpl = r.litres > 0 ? r.cpl : Infinity;
+    const diff = cpl - lmoCplPerL;
+    const isCurrent = h === Math.round(inp.psaHours);
+    const tr = document.createElement('tr');
+    if (isCurrent) tr.className = 'highlight-row';
+    tr.innerHTML = `
+      <td>${h}h${isCurrent?' ◀ current':''}</td>
+      <td>${fmt(r.litres)} L</td>
+      <td>${fmtINR(r.elec)}</td>
+      <td>${fmtINR(r.total)}</td>
+      <td>₹${cpl.toFixed(4)}</td>
+      <td class="vs-col ${diff<0?'cheaper':'costlier'}">${diff<0?'▼ cheaper by ₹'+(Math.abs(diff)).toFixed(4):'▲ costlier by ₹'+(diff).toFixed(4)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
-buildForecast();
-updateDistrict();
-calc();
+// ── DATA MANAGEMENT ──
+
+const FIELDS = ['lmo-price','patients','o2ppd','psa-hours','psa-lpm','elec-cost','psa-kw','psa-fixed','lmo-hours','lmo-fixed','d-cyls','b-cyls','d-cost','b-cost'];
+const STORAGE_KEY = 'o2dash_settings';
+const PRESETS_KEY = 'o2dash_presets';
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function collectValues() {
+  const vals = {};
+  FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) vals[id] = el.value;
+  });
+  vals['district-idx'] = document.getElementById('district').selectedIndex;
+  return vals;
+}
+
+function applyValues(vals) {
+  if (vals['district-idx'] !== undefined) {
+    document.getElementById('district').selectedIndex = vals['district-idx'];
+  }
+  FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && vals[id] !== undefined) el.value = vals[id];
+  });
+  calc();
+}
+
+function valuesFromRow(row) {
+  if (row.length < 14) return null;
+  const vals = {};
+  FIELDS.forEach((id, i) => vals[id] = row[i]);
+  const lmoPrice = parseFloat(row[0]);
+  const distEl = document.getElementById('district');
+  for (let i = 0; i < distEl.options.length; i++) {
+    if (Math.abs(parseFloat(distEl.options[i].value) - lmoPrice) < 0.01) {
+      vals['district-idx'] = i; break;
+    }
+  }
+  return vals;
+}
+
+// ── SAVE SETTINGS ──
+function saveSettings() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(collectValues()));
+    showToast('✅ Settings saved — will reload next time you open this page');
+  } catch(e) { showToast('⚠ Could not save (localStorage unavailable)'); }
+}
+
+function loadSavedSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { applyValues(JSON.parse(raw)); showToast('📂 Loaded your saved settings'); }
+  } catch(e) {}
+}
+
+function clearSaved() {
+  if (!confirm('Clear all saved settings and presets? This cannot be undone.')) return;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(PRESETS_KEY);
+    refreshPresetSelector();
+    showToast('🗑 Saved settings cleared');
+  } catch(e) {}
+}
+
+// ── PRESETS ──
+function getPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESETS_KEY) || '{}'); }
+  catch(e) { return {}; }
+}
+
+function savePresets(presets) {
+  try { localStorage.setItem(PRESETS_KEY, JSON.stringify(presets)); }
+  catch(e) { showToast('⚠ Could not save preset'); }
+}
+
+function refreshPresetSelector() {
+  const sel = document.getElementById('preset-select');
+  const presets = getPresets();
+  sel.innerHTML = '<option value="">— Load a saved preset —</option>';
+  Object.keys(presets).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+}
+
+function loadPreset() {
+  const name = document.getElementById('preset-select').value;
+  if (!name) return;
+  const presets = getPresets();
+  if (presets[name]) { applyValues(presets[name]); showToast('📂 Loaded preset: "' + name + '"'); }
+}
+
+function openSavePreset() {
+  document.getElementById('preset-name').value = '';
+  document.getElementById('preset-modal').classList.add('open');
+}
+
+function confirmSavePreset() {
+  const name = document.getElementById('preset-name').value.trim();
+  if (!name) { showToast('Please enter a name'); return; }
+  const presets = getPresets();
+  presets[name] = collectValues();
+  savePresets(presets);
+  refreshPresetSelector();
+  closeModal('preset-modal');
+  showToast('🔖 Preset "' + name + '" saved');
+}
+
+// ── CSV IMPORT ──
+function openImport() {
+  document.getElementById('csv-file').value = '';
+  document.getElementById('csv-err').style.display = 'none';
+  document.getElementById('import-modal').classList.add('open');
+}
+
+function importCSV() {
+  const file = document.getElementById('csv-file').files[0];
+  const errEl = document.getElementById('csv-err');
+  if (!file) { errEl.textContent = 'Please select a CSV file.'; errEl.style.display='block'; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.trim().split('\n').filter(l => l.trim());
+    let dataLine = lines[0];
+    if (isNaN(parseFloat(lines[0].split(/[,\t]/)[0])) && lines.length > 1) dataLine = lines[1];
+    const row = dataLine.split(/[,\t]/).map(v => parseFloat(v.trim()));
+    const vals = valuesFromRow(row);
+    if (!vals) { errEl.textContent = 'Expected 14 numeric values, got ' + row.length + '. Check column order.'; errEl.style.display='block'; return; }
+    applyValues(vals);
+    closeModal('import-modal');
+    showToast('✅ CSV imported successfully');
+  };
+  reader.readAsText(file);
+}
+
+// ── PASTE IMPORT ──
+function openPaste() {
+  document.getElementById('paste-area').value = '';
+  document.getElementById('paste-err').style.display = 'none';
+  document.getElementById('paste-modal').classList.add('open');
+}
+
+function applyPaste() {
+  const raw = document.getElementById('paste-area').value.trim();
+  const errEl = document.getElementById('paste-err');
+  if (!raw) { errEl.textContent = 'Please paste some data first.'; errEl.style.display='block'; return; }
+  const row = raw.split(/[,\t]/).map(v => parseFloat(v.trim()));
+  if (row.some(isNaN)) { errEl.textContent = 'Some values could not be read as numbers. Check for extra text.'; errEl.style.display='block'; return; }
+  const vals = valuesFromRow(row);
+  if (!vals) { errEl.textContent = 'Expected 14 values, got ' + row.length + '. Check column order above.'; errEl.style.display='block'; return; }
+  applyValues(vals);
+  closeModal('paste-modal');
+  showToast('✅ Data applied from paste');
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+// ── INIT ──
+refreshPresetSelector();
+loadSavedSettings();
+if (!localStorage.getItem(STORAGE_KEY)) calc();
 </script>
 </body>
 </html>
