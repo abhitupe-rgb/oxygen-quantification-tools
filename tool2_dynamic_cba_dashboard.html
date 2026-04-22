@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O₂ Operational Cost Dashboard — Dynamic CBA</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--s1:#161b22;--s2:#1c2330;--border:#30363d;
+  --text:#e6edf3;--muted:#7d8590;
+  --psa:#3fb950;--lmo:#58a6ff;--cyl:#f78166;
+}
+html,body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;min-height:100vh}
+.wrap{padding:20px;max-width:1100px;margin:0 auto}
+
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+h1{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600}
+.header-sub{font-size:11px;color:var(--muted);margin-top:3px;font-family:'IBM Plex Mono',monospace}
+.pill{background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--psa)}
+
+.layout{display:grid;grid-template-columns:270px 1fr;gap:14px}
+.panel{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:10px}
+.ptitle{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;font-family:'IBM Plex Mono',monospace}
+
+.field{margin-bottom:12px}
+.field label{display:block;font-size:10px;color:var(--muted);margin-bottom:3px}
+.frow{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.fval{font-size:14px;font-weight:600;font-family:'IBM Plex Mono',monospace}
+.psa-c{color:var(--psa)}.lmo-c{color:var(--lmo)}.cyl-c{color:var(--cyl)}
+
+input[type=range]{width:100%;cursor:pointer;height:4px;display:block}
+input[type=range].psa-r{accent-color:var(--psa)}
+input[type=range].lmo-r{accent-color:var(--lmo)}
+input[type=range].cyl-r{accent-color:var(--cyl)}
+
+select{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 8px;font-size:12px;font-family:'IBM Plex Sans',sans-serif}
+
+.verdict{border-radius:6px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;border:1px solid}
+.vl{font-size:9px;text-transform:uppercase;letter-spacing:.07em;opacity:.7;font-family:'IBM Plex Mono',monospace}
+.vv{font-size:17px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-top:2px}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.stat{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:10px}
+.sl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;font-family:'IBM Plex Mono',monospace}
+.sv{font-size:19px;font-weight:600;font-family:'IBM Plex Mono',monospace}
+.ss{font-size:9px;color:var(--muted);margin-top:2px}
+
+.src-block{margin-bottom:12px}
+.src-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.src-name{font-size:11px;font-weight:500;display:flex;align-items:center;gap:5px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.src-cost{font-size:12px;font-weight:600;font-family:'IBM Plex Mono',monospace}
+.bar-bg{background:var(--s2);border-radius:3px;height:8px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .3s ease}
+.src-meta{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:3px}
+.opt-badge{font-size:9px;background:#0d2a1a;border:1px solid #1a5c2e;color:var(--psa);padding:1px 6px;border-radius:3px;font-family:'IBM Plex Mono',monospace}
+
+.chart-wrap{position:relative;height:150px;margin-top:8px}
+
+.mini-t{width:100%;border-collapse:collapse;font-size:11px}
+.mini-t th{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:6px 6px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;text-align:left}
+.mini-t td{padding:6px 6px;border-bottom:1px solid var(--s2);font-family:'IBM Plex Mono',monospace}
+.mini-t tr:last-child td{border-bottom:none}
+.winner-row{background:#0d2a1a}
+
+.district-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
+.district-table th{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:5px 6px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;text-align:left}
+.district-table td{padding:5px 6px;border-bottom:1px solid var(--s2);font-family:'IBM Plex Mono',monospace;font-size:11px}
+.district-table tr:last-child td{border-bottom:none}
+.district-selected{color:var(--lmo);font-weight:600}
+
+.forecast-wrap{display:flex;align-items:flex-end;gap:3px;height:70px;margin:10px 0 4px}
+.fc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.fc-bar{width:100%;border-radius:2px 2px 0 0;min-height:3px;transition:height .3s}
+.fc-lbl{font-size:8px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+
+footer{text-align:center;padding:20px;font-size:11px;color:var(--muted);margin-top:8px;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <h1>O₂ Operational Cost Dashboard</h1>
+      <div class="header-sub">Dynamic Cost-Benefit Analysis · Punjab, India · Adjust inputs to recalculate</div>
+    </div>
+    <div class="pill" id="month-label">APR 2024</div>
+  </div>
+
+  <div class="layout">
+    <!-- INPUTS -->
+    <div>
+      <div class="panel">
+        <div class="ptitle">Facility & Patient Load</div>
+        <div class="field">
+          <div class="frow"><label>Facility / District</label></div>
+          <select id="s-district" onchange="updateDistrict();calc()">
+            <option value="21.25">Amritsar (₹21.25/m³)</option>
+            <option value="20.99">Barnala (₹20.99/m³)</option>
+            <option value="19.34">Patiala — cheapest (₹19.34/m³)</option>
+            <option value="20.46">Jalandhar (₹20.46/m³)</option>
+            <option value="20.18">Ludhiana (₹20.18/m³)</option>
+            <option value="22.93">Fazilka — costliest (₹22.93/m³)</option>
+            <option value="21.53">Firozepur (₹21.53/m³)</option>
+            <option value="20.91">Hoshiarpur (₹20.91/m³)</option>
+          </select>
+        </div>
+        <div class="field">
+          <div class="frow"><label>IPD patients last month</label><span class="fval psa-c" id="v-ipd">1,202</span></div>
+          <input type="range" class="psa-r" min="100" max="5000" value="1202" step="10" oninput="syncFV('ipd',this.value,0,true);calc()">
+        </div>
+        <div class="field">
+          <div class="frow"><label>O₂ per patient-day (litres)</label><span class="fval psa-c" id="v-o2pp">3,230</span></div>
+          <input type="range" class="psa-r" min="500" max="8000" value="3230" step="100" oninput="syncFV('o2pp',this.value,0,true);calc()">
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">PSA Plant</div>
+        <div class="field">
+          <div class="frow"><label>Run hours / day</label><span class="fval psa-c" id="v-psah">11</span></div>
+          <input type="range" class="psa-r" min="0" max="24" value="11" step="1" oninput="syncFV('psah',this.value);calc()">
+        </div>
+        <div class="field">
+          <div class="frow"><label>Plant capacity (LPM)</label><span class="fval psa-c" id="v-psacap">1,000</span></div>
+          <input type="range" class="psa-r" min="100" max="3000" value="1000" step="100" oninput="syncFV('psacap',this.value,0,true);calc()">
+        </div>
+        <div class="field">
+          <div class="frow"><label>Electricity cost (INR/kWh)</label><span class="fval psa-c" id="v-elec">9.0</span></div>
+          <input type="range" class="psa-r" min="3" max="20" value="9" step="0.5" oninput="syncFV('elec',this.value,1);calc()">
+        </div>
+        <div class="field">
+          <div class="frow"><label>Power consumption (kW)</label><span class="fval psa-c" id="v-kw">75</span></div>
+          <input type="range" class="psa-r" min="10" max="200" value="75" step="5" oninput="syncFV('kw',this.value);calc()">
+        </div>
+        <div class="field">
+          <div class="frow"><label>Fixed monthly costs — staff + maintenance (INR)</label><span class="fval psa-c" id="v-psafixed">68,908</span></div>
+          <input type="range" class="psa-r" min="10000" max="200000" value="68908" step="1000" oninput="syncFV('psafixed',this.value,0,true);calc()">
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">LMO Tank</div>
+        <div class="field">
+          <div class="frow"><label>Run hours / day</label><span class="fval lmo-c" id="v-lmoh">1</span></div>
+          <input type="range" class="lmo-r" min="0" max="24" value="1" step="1" oninput="syncFV('lmoh',this.value);calc()">
+        </div>
+        <div class="field">
+          <div class="frow"><label>LMO price (INR/m³) — auto from district</label><span class="fval lmo-c" id="v-lmoprice">21.25</span></div>
+          <input type="range" class="lmo-r" min="15" max="35" value="21.25" step="0.25" id="lmo-price-slider" oninput="syncFV('lmoprice',this.value,2);calc()">
+        </div>
+        <div class="field">
+          <div class="frow"><label>LMO fixed costs/month — licensing etc. (INR)</label><span class="fval lmo-c" id="v-lmofixed">8,100</span></div>
+          <input type="range" class="lmo-r" min="0" max="30000" value="8100" step="100" oninput="syncFV('lmofixed',this.value,0,true);calc()">
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">Cylinders</div>
+        <div class="field">
+          <div class="frow"><label>D-type cylinders used / month</label><span class="fval cyl-c" id="v-dcyl">35</span></div>
+          <input type="range" class="cyl-r" min="0" max="300" value="35" step="1" oninput="syncFV('dcyl',this.value);calc()">
+        </div>
+        <div class="field">
+          <div class="frow"><label>B-type cylinders used / month</label><span class="fval cyl-c" id="v-bcyl">10</span></div>
+          <input type="range" class="cyl-r" min="0" max="100" value="10" step="1" oninput="syncFV('bcyl',this.value);calc()">
+        </div>
+        <div class="field">
+          <div class="frow"><label>D-cylinder refill cost (INR)</label><span class="fval cyl-c" id="v-dcost">300</span></div>
+          <input type="range" class="cyl-r" min="100" max="800" value="300" step="10" oninput="syncFV('dcost',this.value);calc()">
+        </div>
+        <div class="field">
+          <div class="frow"><label>B-cylinder refill cost (INR)</label><span class="fval cyl-c" id="v-bcost">200</span></div>
+          <input type="range" class="cyl-r" min="50" max="400" value="200" step="10" oninput="syncFV('bcost',this.value);calc()">
+        </div>
+      </div>
+    </div>
+
+    <!-- OUTPUTS -->
+    <div>
+      <div class="verdict" id="verdict" style="background:#0d2a1a;border-color:#1a5c2e">
+        <div>
+          <div class="vl">Cheapest source (cost per litre)</div>
+          <div class="vv psa-c" id="v-cheapest">PSA Plant</div>
+        </div>
+        <div style="text-align:right">
+          <div class="vl">Potential monthly saving (all-PSA scenario)</div>
+          <div class="vv" id="v-saving">—</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="sl">Total O₂ needed</div>
+          <div class="sv psa-c" id="o-need">3.88M L</div>
+          <div class="ss">this month (30 days)</div>
+        </div>
+        <div class="stat">
+          <div class="sl">Total monthly cost</div>
+          <div class="sv cyl-c" id="o-total">₹2.90L</div>
+          <div class="ss">current source mix</div>
+        </div>
+        <div class="stat">
+          <div class="sl">Optimal cost (PSA only)</div>
+          <div class="sv psa-c" id="o-optimal">₹2.32L</div>
+          <div class="ss">all load on PSA</div>
+        </div>
+      </div>
+
+      <!-- Source comparison -->
+      <div class="panel" style="margin-bottom:10px">
+        <div class="ptitle">Cost per litre — current settings</div>
+        <div class="src-block">
+          <div class="src-hdr">
+            <span class="src-name"><span class="dot" style="background:var(--psa)"></span>PSA Plant <span class="opt-badge" id="psa-badge">CHEAPEST</span></span>
+            <span class="src-cost psa-c" id="o-psaunit">₹0.051/L</span>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" id="bar-psa" style="background:var(--psa)"></div></div>
+          <div class="src-meta"><span id="psa-meta">11h/day · ₹224,833/month</span><span id="psa-pct">82.7% of load</span></div>
+        </div>
+        <div class="src-block">
+          <div class="src-hdr">
+            <span class="src-name"><span class="dot" style="background:var(--cyl)"></span>Cylinders <span class="opt-badge" id="cyl-badge" style="display:none">CHEAPEST</span></span>
+            <span class="src-cost cyl-c" id="o-cylunit">₹0.040/L</span>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" id="bar-cyl" style="background:var(--cyl)"></div></div>
+          <div class="src-meta"><span id="cyl-meta">35 D + 10 B cylinders · ₹23,288/month</span><span id="cyl-pct">9.7% of load</span></div>
+        </div>
+        <div class="src-block">
+          <div class="src-hdr">
+            <span class="src-name"><span class="dot" style="background:var(--lmo)"></span>LMO Tank <span class="opt-badge" id="lmo-badge" style="display:none">CHEAPEST</span></span>
+            <span class="src-cost lmo-c" id="o-lmounit">₹0.104/L</span>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" id="bar-lmo" style="background:var(--lmo)"></div></div>
+          <div class="src-meta"><span id="lmo-meta">1h/day · ₹41,671/month</span><span id="lmo-pct">7.5% of load</span></div>
+        </div>
+      </div>
+
+      <!-- PSA chart -->
+      <div class="panel" style="margin-bottom:10px">
+        <div class="ptitle">PSA cost per litre vs run hours — vs LMO breakeven</div>
+        <div class="chart-wrap"><canvas id="psaChart"></canvas></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <!-- Forecast -->
+        <div class="panel">
+          <div class="ptitle">IPD demand — monthly trend (base: DH Amritsar)</div>
+          <div class="forecast-wrap" id="forecast-bars"></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">
+            Next month forecast: <span style="color:var(--lmo);font-family:'IBM Plex Mono',monospace" id="forecast-next">1,486</span>
+          </div>
+        </div>
+        <!-- District table -->
+        <div class="panel">
+          <div class="ptitle">LMO pricing by district (INR/m³)</div>
+          <table class="district-table" id="district-table">
+            <thead><tr><th>District</th><th>Total</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PSA run hours table -->
+      <div class="panel">
+        <div class="ptitle">PSA operational cost table — by run hours</div>
+        <table class="mini-t">
+          <thead><tr><th>Hrs/day</th><th>O₂ produced</th><th>Elec/month</th><th>Total OPEX</th><th>₹/litre</th><th>vs LMO</th></tr></thead>
+          <tbody id="hrs-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <footer>O₂ Operational Cost Dashboard — Dynamic CBA Tool &nbsp;·&nbsp; Medical Oxygen Quantification &nbsp;·&nbsp; Dummy data for demonstration</footer>
+</div>
+
+<script>
+const districts = [
+  {name:'Amritsar',price:21.25},{name:'Barnala',price:20.99},{name:'Patiala',price:19.34},
+  {name:'Jalandhar',price:20.46},{name:'Ludhiana',price:20.18},{name:'Fazilka',price:22.93},
+  {name:'Firozepur',price:21.53},{name:'Hoshiarpur',price:20.91},{name:'Mansa',price:20.99},
+  {name:'Patiala',price:19.34},{name:'Sangrur',price:20.99},{name:'Tarn Taran',price:21.69}
+];
+
+const ipdData = [1413,1383,1107,1120,1141,1186,1202,1387,1379,1656,1776,1667];
+const months = ['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'];
+
+function buildForecast(){
+  const container = document.getElementById('forecast-bars');
+  container.innerHTML='';
+  const max = Math.max(...ipdData);
+  months.forEach((m,i)=>{
+    const pct = (ipdData[i]/max)*100;
+    const isCur = m==='Apr';
+    const col = document.createElement('div');
+    col.className='fc-col';
+    col.innerHTML=`<div class="fc-bar" style="height:${pct}%;background:${isCur?'#58a6ff':'#30363d'}"></div><div class="fc-lbl">${m}</div>`;
+    container.appendChild(col);
+  });
+  document.getElementById('forecast-next').textContent = '1,486';
+}
+
+function buildDistrictTable(selectedPrice){
+  const tbody = document.querySelector('#district-table tbody');
+  tbody.innerHTML='';
+  const sorted = [...districts].sort((a,b)=>a.price-b.price);
+  sorted.forEach(d=>{
+    const isSelected = Math.abs(d.price - selectedPrice) < 0.01;
+    const tr = document.createElement('tr');
+    if(isSelected) tr.style.background='#0c1e35';
+    tr.innerHTML=`<td class="${isSelected?'district-selected':''}">${d.name}${isSelected?' ★':''}</td><td class="${isSelected?'district-selected':''}" style="font-family:'IBM Plex Mono',monospace">₹${d.price.toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateDistrict(){
+  const price = parseFloat(document.getElementById('s-district').value);
+  document.getElementById('v-lmoprice').textContent = price.toFixed(2);
+  document.getElementById('lmo-price-slider').value = price;
+  buildDistrictTable(price);
+}
+
+function syncFV(id,val,dp,comma){
+  let dp2 = dp!==undefined?dp:0;
+  let n = parseFloat(val);
+  let s = comma ? Math.round(n).toLocaleString('en-IN') : n.toFixed(dp2);
+  document.getElementById('v-'+id).textContent = s;
+}
+
+function fmtINR(n){
+  if(n>=100000) return '₹'+(n/100000).toFixed(2)+'L';
+  if(n>=1000) return '₹'+(n/1000).toFixed(1)+'K';
+  return '₹'+Math.round(n);
+}
+
+let psaChart;
+function calc(){
+  const ipd = parseInt(document.getElementById('v-ipd').textContent.replace(/,/g,''));
+  const o2pp = parseInt(document.getElementById('v-o2pp').textContent.replace(/,/g,''));
+  const psaH = parseInt(document.getElementById('v-psah').textContent);
+  const psaCap = parseInt(document.getElementById('v-psacap').textContent.replace(/,/g,''));
+  const elec = parseFloat(document.getElementById('v-elec').textContent);
+  const kw = parseInt(document.getElementById('v-kw').textContent);
+  const psaFixed = parseInt(document.getElementById('v-psafixed').textContent.replace(/,/g,''));
+  const lmoH = parseInt(document.getElementById('v-lmoh').textContent);
+  const lmoPrice = parseFloat(document.getElementById('v-lmoprice').textContent);
+  const lmoFixed = parseInt(document.getElementById('v-lmofixed').textContent.replace(/,/g,''));
+  const dCyl = parseInt(document.getElementById('v-dcyl').textContent);
+  const bCyl = parseInt(document.getElementById('v-bcyl').textContent);
+  const dCost = parseInt(document.getElementById('v-dcost').textContent);
+  const bCost = parseInt(document.getElementById('v-bcost').textContent);
+
+  const totalO2 = ipd * 30 * o2pp;
+  const psaFlow = psaCap * 0.7;
+
+  // PSA
+  const psaO2 = psaFlow * 60 * psaH * 30;
+  const psaElec = kw * psaH * 30 * elec;
+  const psaCost = psaFixed + psaElec;
+  const psaUnit = psaO2 > 0 ? psaCost / psaO2 : 0;
+
+  // LMO
+  const lmoO2 = psaFlow * 60 * lmoH * 30;
+  const lmoM3 = lmoO2 / 1000;
+  const lmoCost = lmoM3 * lmoPrice * 1.12 + lmoFixed;
+  const lmoUnit = lmoO2 > 0 ? lmoCost / lmoO2 : 0;
+
+  // Cylinders
+  const cylO2 = dCyl * 7500 + bCyl * 1500;
+  const cylCost = dCyl * dCost + bCyl * bCost;
+  const cylUnit = cylO2 > 0 ? cylCost / cylO2 : 0;
+
+  const totalCost = psaCost + lmoCost + cylCost;
+
+  // Optimal
+  const optH = Math.min(24, Math.ceil(totalO2/(psaFlow*60*30)));
+  const optCost = psaFixed + kw * optH * 30 * elec;
+  const saving = totalCost - optCost;
+
+  // Cheapest
+  const srcs = [{name:'PSA Plant',unit:psaUnit,col:'psa-c'},{name:'LMO Tank',unit:lmoUnit,col:'lmo-c'},{name:'Cylinders',unit:cylUnit,col:'cyl-c'}];
+  const cheapest = srcs.sort((a,b)=>a.unit-b.unit)[0];
+
+  document.getElementById('v-cheapest').textContent = cheapest.name;
+  document.getElementById('v-cheapest').className = 'vv '+cheapest.col;
+  document.getElementById('v-saving').textContent = saving>0 ? fmtINR(saving)+' saving/month' : 'Already optimal';
+
+  document.getElementById('o-need').textContent = (totalO2/1e6).toFixed(2)+'M L';
+  document.getElementById('o-total').textContent = fmtINR(totalCost);
+  document.getElementById('o-optimal').textContent = fmtINR(optCost);
+
+  const maxU = Math.max(psaUnit, lmoUnit, cylUnit, 0.001);
+  document.getElementById('o-psaunit').textContent = '₹'+psaUnit.toFixed(3)+'/L';
+  document.getElementById('o-lmounit').textContent = '₹'+lmoUnit.toFixed(3)+'/L';
+  document.getElementById('o-cylunit').textContent = '₹'+cylUnit.toFixed(3)+'/L';
+
+  document.getElementById('bar-psa').style.width = Math.min(100,(psaUnit/maxU)*100)+'%';
+  document.getElementById('bar-lmo').style.width = Math.min(100,(lmoUnit/maxU)*100)+'%';
+  document.getElementById('bar-cyl').style.width = Math.min(100,(cylUnit/maxU)*100)+'%';
+
+  const tot = (psaO2+lmoO2+cylO2)||1;
+  document.getElementById('psa-pct').textContent = (psaO2/tot*100).toFixed(1)+'% of load';
+  document.getElementById('lmo-pct').textContent = (lmoO2/tot*100).toFixed(1)+'% of load';
+  document.getElementById('cyl-pct').textContent = (cylO2/tot*100).toFixed(1)+'% of load';
+
+  document.getElementById('psa-meta').textContent = psaH+'h/day · '+fmtINR(psaCost)+'/month';
+  document.getElementById('lmo-meta').textContent = lmoH+'h/day · '+fmtINR(lmoCost)+'/month';
+  document.getElementById('cyl-meta').textContent = dCyl+'D + '+bCyl+'B cyl · '+fmtINR(cylCost)+'/month';
+
+  ['psa','lmo','cyl'].forEach(s=>document.getElementById(s+'-badge').style.display='none');
+  const badgeMap = {'PSA Plant':'psa','LMO Tank':'lmo','Cylinders':'cyl'};
+  document.getElementById(badgeMap[cheapest.name]+'-badge').style.display='';
+
+  // Chart
+  const hLabels=[], costLine=[], lmoLine=[];
+  for(let h=1;h<=24;h++){
+    const o2h = psaFlow*60*h*30;
+    const tc = psaFixed + kw*h*30*elec;
+    hLabels.push(h+'h');
+    costLine.push(+(tc/o2h).toFixed(4));
+    lmoLine.push(+lmoUnit.toFixed(4));
+  }
+  if(psaChart) psaChart.destroy();
+  psaChart = new Chart(document.getElementById('psaChart'),{
+    type:'line',
+    data:{labels:hLabels,datasets:[
+      {label:'PSA ₹/L',data:costLine,borderColor:'#3fb950',borderWidth:2,pointRadius:0,tension:0.3,fill:false},
+      {label:'LMO ₹/L',data:lmoLine,borderColor:'#58a6ff',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{color:'#7d8590',font:{family:'IBM Plex Mono',size:10},boxWidth:10,padding:10}}},
+      scales:{
+        x:{grid:{color:'#1c2330'},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:9}}},
+        y:{grid:{color:'#1c2330'},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:9},callback:v=>'₹'+v.toFixed(3)}}
+      }
+    }
+  });
+
+  // Table
+  const tbody = document.getElementById('hrs-table');
+  tbody.innerHTML='';
+  [2,4,6,8,10,11,12,16,20,24].forEach(h=>{
+    const o2h = psaFlow*60*h*30;
+    const ec = kw*h*30*elec;
+    const tc = psaFixed+ec;
+    const ul = tc/o2h;
+    const vsLMO = ul<lmoUnit?`<span class="psa-c">PSA ✓</span>`:`<span class="lmo-c">LMO ✓</span>`;
+    const isCur = h===psaH;
+    const tr = document.createElement('tr');
+    if(isCur) tr.className='winner-row';
+    tr.innerHTML=`<td>${h}h${isCur?' ★':''}</td><td>${(o2h/1e6).toFixed(2)}M L</td><td>${fmtINR(ec)}</td><td>${fmtINR(tc)}</td><td>₹${ul.toFixed(3)}</td><td>${vsLMO}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  buildDistrictTable(lmoPrice);
+}
+
+buildForecast();
+updateDistrict();
+calc();
+</script>
+</body>
+</html>
