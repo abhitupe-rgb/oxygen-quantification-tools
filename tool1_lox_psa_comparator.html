@@ -1507,19 +1507,27 @@ if (window.innerWidth <= 768) {
           </div>
         </div>
 
-        <!-- facility grid -->
+        <!-- facility table -->
         <div style="overflow-x:auto">
-          <div id="fac-grid" style="display:grid;grid-template-columns:2.5fr 1.2fr 1fr 1fr 1fr auto;min-width:520px">
-            <div style="display:contents" id="fac-grid-hdr">
-              <div style="padding:7px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);border-bottom:1px solid var(--border);background:#f8f9fc">Facility name</div>
-              <div style="padding:7px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);border-bottom:1px solid var(--border);background:#f8f9fc">Type</div>
-              <div style="padding:7px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);border-bottom:1px solid var(--border);background:#f8f9fc">Beds</div>
-              <div style="padding:7px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);border-bottom:1px solid var(--border);background:#f8f9fc">Dist. (km)</div>
-              <div style="padding:7px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);border-bottom:1px solid var(--border);background:#f8f9fc">Cyl/month</div>
-              <div style="padding:7px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);border-bottom:1px solid var(--border);background:#f8f9fc"></div>
-            </div>
-            <div id="fac-rows"></div>
-          </div>
+          <table id="fac-table" style="min-width:520px">
+            <thead>
+              <tr>
+                <th>Facility name</th>
+                <th>Type</th>
+                <th>Beds</th>
+                <th>Dist. (km)</th>
+                <th>Cyl/month</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="fac-rows">
+              <tr id="fac-empty-row">
+                <td colspan="6" style="text-align:center;color:var(--muted);padding:20px;font-style:italic;font-family:inherit">
+                  No facilities added yet — click "+ Add facility" to get started
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="data-note" style="margin-top:12px">
@@ -1606,310 +1614,387 @@ if (window.innerWidth <= 768) {
 
 <script>
 // ══════════════════════════════════════
-// ROUTE PLANNER
+// ROUTE PLANNER — clean rewrite
 // ══════════════════════════════════════
 
-let facilities = [];
-let facCount = 0;
-let feasSortKey = 'dist';
-let currentRPTab = 'add';
+var facCount = 0;
+var feasSortKey = 'dist';
+var currentRPTab = 'add';
+var _rpZones = [];
+var _rpWithTier = [];
 
 function setRPTab(t) {
   currentRPTab = t;
-  ['add','routes','feas','monitor'].forEach(tab => {
-    document.getElementById('rp-tab-'+tab).classList.toggle('active', tab===t);
-    document.getElementById('rp-pane-'+tab).classList.toggle('active', tab===t);
+  ['add','routes','feas','monitor'].forEach(function(tab) {
+    document.getElementById('rp-tab-' + tab).classList.toggle('active', tab === t);
+    document.getElementById('rp-pane-' + tab).classList.toggle('active', tab === t);
   });
-  if (t === 'routes') renderRoutes();
-  if (t === 'feas') renderFeasTable();
+  if (t === 'routes')  renderRoutes();
+  if (t === 'feas')    renderFeasTable();
   if (t === 'monitor') renderMonitor();
-}
-
-function tierInfo(dist, cyl, z1, z2, z3, minCyl) {
-  if (dist > z3) return { tier: 'Not Recommended', cls: 'costly', rec: 'Consider sub-depot or quarterly consolidation run', color: '#fee2e2', textColor: '#b91c1c' };
-  if (dist > z2 || cyl < 10) return { tier: 'Marginal', cls: 'mid', rec: 'High cost per cylinder — review frequency or consolidate', color: '#fef9c3', textColor: '#a16207' };
-  if (dist <= z1 && cyl >= minCyl) return { tier: 'Highly Feasible', cls: 'cheapest', rec: 'Optimal — prioritise on weekly routes', color: '#dcfce7', textColor: '#15803d' };
-  return { tier: 'Feasible', cls: '', rec: 'Viable with planned scheduling', color: '#e0f2fe', textColor: '#0369a1' };
 }
 
 function getConfig() {
   return {
-    hubName: document.getElementById('rp-hubname').value || 'Central Hub',
-    truckCap: +document.getElementById('rp-truckcap').value || 59,
-    z1: +document.getElementById('rp-z1').value || 20,
-    z2: +document.getElementById('rp-z2').value || 40,
-    z3: +document.getElementById('rp-z3').value || 70,
-    minCyl: +document.getElementById('rp-mincyl').value || 30,
+    hubName:  document.getElementById('rp-hubname').value || 'Central Hub',
+    truckCap: parseFloat(document.getElementById('rp-truckcap').value) || 59,
+    z1:       parseFloat(document.getElementById('rp-z1').value) || 20,
+    z2:       parseFloat(document.getElementById('rp-z2').value) || 40,
+    z3:       parseFloat(document.getElementById('rp-z3').value) || 70,
+    minCyl:   parseFloat(document.getElementById('rp-mincyl').value) || 30
   };
 }
 
+function tierInfo(dist, cyl, z1, z2, z3, minCyl) {
+  if (dist > z3)
+    return { tier: 'Not Recommended', rec: 'Consider sub-depot or quarterly consolidation run', color: '#fee2e2', textColor: '#b91c1c' };
+  if (dist > z2 || cyl < 10)
+    return { tier: 'Marginal', rec: 'High cost per cylinder — review frequency or consolidate', color: '#fef9c3', textColor: '#a16207' };
+  if (dist <= z1 && cyl >= minCyl)
+    return { tier: 'Highly Feasible', rec: 'Optimal — prioritise on weekly routes', color: '#dcfce7', textColor: '#15803d' };
+  return { tier: 'Feasible', rec: 'Viable with planned scheduling', color: '#e0f2fe', textColor: '#0369a1' };
+}
+
 function getFacilities() {
-  const rows = document.querySelectorAll('.fac-data-row');
-  return Array.from(rows).map(r => ({
-    id: r.dataset.id,
-    name: r.querySelector('.fp-name').value || 'Unnamed',
-    type: r.querySelector('.fp-type').value || 'Hospital',
-    beds: +r.querySelector('.fp-beds').value || 0,
-    dist: +r.querySelector('.fp-dist').value || 0,
-    cyl: +r.querySelector('.fp-cyl').value || 0,
-  })).filter(f => f.name && f.cyl > 0);
+  var rows = document.querySelectorAll('.fac-data-row');
+  var result = [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var nameEl = r.querySelector('.fp-name');
+    var typeEl = r.querySelector('.fp-type');
+    var bedsEl = r.querySelector('.fp-beds');
+    var distEl = r.querySelector('.fp-dist');
+    var cylEl  = r.querySelector('.fp-cyl');
+    var cyl = cylEl ? (parseFloat(cylEl.value) || 0) : 0;
+    if (cyl > 0) {
+      result.push({
+        id:   r.dataset.id,
+        name: nameEl ? (nameEl.value || 'Unnamed') : 'Unnamed',
+        type: typeEl ? (typeEl.value || 'Hospital') : 'Hospital',
+        beds: bedsEl ? (parseFloat(bedsEl.value) || 0) : 0,
+        dist: distEl ? (parseFloat(distEl.value) || 0) : 0,
+        cyl:  cyl
+      });
+    }
+  }
+  return result;
 }
 
 function addFacility(data) {
   facCount++;
-  const container = document.getElementById('fac-rows');
-  const row = document.createElement('div');
-  row.className = 'fac-data-row';
-  row.dataset.id = facCount;
-  row.style.cssText = 'display:contents';
-  const d = data || {};
-  const cellStyle = 'padding:7px 8px;border-bottom:1px solid #f0f2f5;display:flex;align-items:center;font-size:12px;';
-  const inputStyle = 'width:100%;background:transparent;border:none;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;outline:none;padding:2px 4px;border-radius:4px;';
-  row.innerHTML = `
-    <div style="${cellStyle}"><input class="fp-name" type="text" placeholder="Facility name" value="${d.name||''}" onchange="calcRP()" style="${inputStyle}font-family:inherit;font-size:12px" /></div>
-    <div style="${cellStyle}">
-      <select class="fp-type" onchange="calcRP()" style="${inputStyle}cursor:pointer">
-        <option ${(d.type||'')==='Hospital'?'selected':''}>Hospital</option>
-        <option ${(d.type||'')==='Health Centre'?'selected':''}>Health Centre</option>
-        <option ${(d.type||'')==='Clinic'?'selected':''}>Clinic</option>
-        <option ${(d.type||'')==='Maternity'?'selected':''}>Maternity</option>
-        <option ${(d.type||'')==='Military'?'selected':''}>Military</option>
-        <option ${(d.type||'')==='Other'?'selected':''}>Other</option>
-      </select>
-    </div>
-    <div style="${cellStyle}"><input class="fp-beds" type="number" placeholder="0" value="${d.beds||''}" onchange="calcRP()" style="${inputStyle}" /></div>
-    <div style="${cellStyle}"><input class="fp-dist" type="number" placeholder="km" value="${d.dist||''}" step="0.1" onchange="calcRP()" style="${inputStyle}" /></div>
-    <div style="${cellStyle}"><input class="fp-cyl" type="number" placeholder="0" value="${d.cyl||''}" onchange="calcRP()" style="${inputStyle}" /></div>
-    <div style="${cellStyle}"><button onclick="removeFacility(this)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:3px 6px;border-radius:4px" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='var(--muted)'">✕</button></div>
-  `;
-  container.appendChild(row);
+  var tbody = document.getElementById('fac-rows');
+  if (!tbody) return;
+
+  var emptyRow = document.getElementById('fac-empty-row');
+  if (emptyRow) emptyRow.remove();
+
+  var d = data || {};
+  var tr = document.createElement('tr');
+  tr.className = 'fac-data-row';
+  tr.dataset.id = String(facCount);
+
+  // name cell
+  var tdName = document.createElement('td');
+  tdName.style.padding = '7px 8px';
+  var inName = document.createElement('input');
+  inName.className = 'fp-name';
+  inName.type = 'text';
+  inName.placeholder = 'Facility name';
+  inName.value = d.name || '';
+  inName.addEventListener('change', calcRP);
+  inName.style.cssText = 'width:100%;border:1px solid #e2e6ed;border-radius:4px;padding:4px 6px;font-size:13px;font-family:inherit;background:#f9fafc';
+  tdName.appendChild(inName);
+  tr.appendChild(tdName);
+
+  // type cell
+  var tdType = document.createElement('td');
+  tdType.style.padding = '7px 8px';
+  var selType = document.createElement('select');
+  selType.className = 'fp-type';
+  ['Hospital','Health Centre','Clinic','Maternity','Military','Other'].forEach(function(opt) {
+    var o = document.createElement('option');
+    o.value = opt;
+    o.textContent = opt;
+    if ((d.type || 'Hospital') === opt) o.selected = true;
+    selType.appendChild(o);
+  });
+  selType.addEventListener('change', calcRP);
+  selType.style.cssText = 'width:100%;border:1px solid #e2e6ed;border-radius:4px;padding:4px 6px;font-size:12px;font-family:inherit;background:#f9fafc';
+  tdType.appendChild(selType);
+  tr.appendChild(tdType);
+
+  // beds cell
+  var tdBeds = document.createElement('td');
+  tdBeds.style.padding = '7px 8px';
+  var inBeds = document.createElement('input');
+  inBeds.className = 'fp-beds';
+  inBeds.type = 'number';
+  inBeds.placeholder = '0';
+  inBeds.value = d.beds || '';
+  inBeds.addEventListener('change', calcRP);
+  inBeds.style.cssText = 'width:70px;border:1px solid #e2e6ed;border-radius:4px;padding:4px 6px;font-size:12px;font-family:monospace;background:#f9fafc';
+  tdBeds.appendChild(inBeds);
+  tr.appendChild(tdBeds);
+
+  // dist cell
+  var tdDist = document.createElement('td');
+  tdDist.style.padding = '7px 8px';
+  var inDist = document.createElement('input');
+  inDist.className = 'fp-dist';
+  inDist.type = 'number';
+  inDist.placeholder = 'km';
+  inDist.step = '0.1';
+  inDist.value = d.dist || '';
+  inDist.addEventListener('change', calcRP);
+  inDist.style.cssText = 'width:70px;border:1px solid #e2e6ed;border-radius:4px;padding:4px 6px;font-size:12px;font-family:monospace;background:#f9fafc';
+  tdDist.appendChild(inDist);
+  tr.appendChild(tdDist);
+
+  // cyl cell
+  var tdCyl = document.createElement('td');
+  tdCyl.style.padding = '7px 8px';
+  var inCyl = document.createElement('input');
+  inCyl.className = 'fp-cyl';
+  inCyl.type = 'number';
+  inCyl.placeholder = '0';
+  inCyl.value = d.cyl || '';
+  inCyl.addEventListener('change', calcRP);
+  inCyl.style.cssText = 'width:70px;border:1px solid #e2e6ed;border-radius:4px;padding:4px 6px;font-size:12px;font-family:monospace;background:#f9fafc';
+  tdCyl.appendChild(inCyl);
+  tr.appendChild(tdCyl);
+
+  // remove button cell
+  var tdRm = document.createElement('td');
+  tdRm.style.cssText = 'padding:7px 8px;text-align:center';
+  var btnRm = document.createElement('button');
+  btnRm.textContent = '✕';
+  btnRm.style.cssText = 'background:none;border:none;color:#6b7a92;cursor:pointer;font-size:14px;padding:3px 7px;border-radius:4px';
+  btnRm.addEventListener('mouseover', function() { this.style.color='#dc2626'; this.style.background='#fee2e2'; });
+  btnRm.addEventListener('mouseout',  function() { this.style.color='#6b7a92'; this.style.background='none'; });
+  btnRm.addEventListener('click', function() { removeFacility(this); });
+  tdRm.appendChild(btnRm);
+  tr.appendChild(tdRm);
+
+  tbody.appendChild(tr);
   calcRP();
 }
 
 function removeFacility(btn) {
-  btn.closest('.fac-data-row').remove();
+  var row = btn.closest('.fac-data-row');
+  if (row) row.remove();
+  var tbody = document.getElementById('fac-rows');
+  if (tbody && tbody.querySelectorAll('.fac-data-row').length === 0) {
+    var tr = document.createElement('tr');
+    tr.id = 'fac-empty-row';
+    var td = document.createElement('td');
+    td.colSpan = 6;
+    td.style.cssText = 'text-align:center;color:#6b7a92;padding:20px;font-style:italic';
+    td.textContent = 'No facilities added yet — click "+ Add facility" to get started';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
   calcRP();
 }
 
 function calcRP() {
-  const cfg = getConfig();
-  const facs = getFacilities();
+  var cfg = getConfig();
+  var facs = getFacilities();
 
-  // assign tiers
-  const withTier = facs.map(f => ({ ...f, ...tierInfo(f.dist, f.cyl, cfg.z1, cfg.z2, cfg.z3, cfg.minCyl) }));
+  var withTier = facs.map(function(f) {
+    var t = tierInfo(f.dist, f.cyl, cfg.z1, cfg.z2, cfg.z3, cfg.minCyl);
+    return Object.assign({}, f, t);
+  });
 
-  const totCyl = withTier.reduce((s,f) => s+f.cyl, 0);
-  const tierCounts = { 'Highly Feasible': 0, 'Feasible': 0, 'Marginal': 0, 'Not Recommended': 0 };
-  withTier.forEach(f => tierCounts[f.tier]++);
+  var totCyl = withTier.reduce(function(s, f) { return s + f.cyl; }, 0);
+  var tierCounts = { 'Highly Feasible': 0, 'Feasible': 0, 'Marginal': 0, 'Not Recommended': 0 };
+  withTier.forEach(function(f) { tierCounts[f.tier]++; });
 
-  // group into zones by distance
-  const zones = [
-    { label: `Zone 1 — Inner (<${cfg.z1}km)`, min: 0, max: cfg.z1, freq: 'Weekly' },
-    { label: `Zone 2 — Mid (${cfg.z1}–${cfg.z2}km)`, min: cfg.z1, max: cfg.z2, freq: 'Bi-weekly' },
-    { label: `Zone 3 — Outer (${cfg.z2}–${cfg.z3}km)`, min: cfg.z2, max: cfg.z3, freq: 'Bi-weekly' },
-    { label: `Zone 4 — Remote (>${cfg.z3}km)`, min: cfg.z3, max: Infinity, freq: 'Monthly' },
+  var zones = [
+    { label: 'Zone 1 — Inner (<' + cfg.z1 + 'km)', min: 0,     max: cfg.z1,      freq: 'Weekly' },
+    { label: 'Zone 2 — Mid (' + cfg.z1 + '–' + cfg.z2 + 'km)', min: cfg.z1, max: cfg.z2, freq: 'Bi-weekly' },
+    { label: 'Zone 3 — Outer (' + cfg.z2 + '–' + cfg.z3 + 'km)', min: cfg.z2, max: cfg.z3, freq: 'Bi-weekly' },
+    { label: 'Zone 4 — Remote (>' + cfg.z3 + 'km)', min: cfg.z3, max: Infinity, freq: 'Monthly' }
   ];
 
-  let totalRuns = 0;
-  zones.forEach(z => {
-    const inZone = withTier.filter(f => f.dist >= z.min && f.dist < z.max);
-    const cylInZone = inZone.reduce((s,f) => s+f.cyl, 0);
-    const runsPerDelivery = Math.ceil(cylInZone / cfg.truckCap);
-    const monthlyMultiplier = z.freq === 'Weekly' ? 4 : z.freq === 'Bi-weekly' ? 2 : 1;
-    z.facilities = inZone;
-    z.cylTotal = cylInZone;
-    z.runsPerDelivery = runsPerDelivery;
-    z.monthlyRuns = runsPerDelivery * monthlyMultiplier;
+  var totalRuns = 0;
+  zones.forEach(function(z) {
+    z.facilities = withTier.filter(function(f) { return f.dist >= z.min && f.dist < z.max; });
+    z.cylTotal = z.facilities.reduce(function(s, f) { return s + f.cyl; }, 0);
+    z.runsPerDelivery = Math.ceil(z.cylTotal / cfg.truckCap);
+    var mult = z.freq === 'Weekly' ? 4 : z.freq === 'Bi-weekly' ? 2 : 1;
+    z.monthlyRuns = z.runsPerDelivery * mult;
     totalRuns += z.monthlyRuns;
   });
 
-  const activeZones = zones.filter(z => z.facilities.length > 0);
+  var activeZones = zones.filter(function(z) { return z.facilities.length > 0; });
 
   // summary cards
-  document.getElementById('rp-nfac').textContent = withTier.length;
-  document.getElementById('rp-totcyl').textContent = totCyl > 0 ? totCyl.toLocaleString() : '—';
-  document.getElementById('rp-nroutes').textContent = activeZones.length || '—';
+  document.getElementById('rp-nfac').textContent     = withTier.length;
+  document.getElementById('rp-totcyl').textContent   = totCyl > 0 ? totCyl.toLocaleString() : '—';
+  document.getElementById('rp-nroutes').textContent  = activeZones.length || '—';
   document.getElementById('rp-truckruns').textContent = totalRuns || '—';
-  document.getElementById('rp-hf').textContent = tierCounts['Highly Feasible'] || '0';
+  document.getElementById('rp-hf').textContent       = tierCounts['Highly Feasible'] || '0';
 
   // feasibility bars
-  const barContainer = document.getElementById('rp-feasibility-bars');
+  var barContainer = document.getElementById('rp-feasibility-bars');
   barContainer.innerHTML = '';
-  const tierDefs = [
-    { name: 'Highly Feasible', color: '#16a34a', bg: '#dcfce7', desc: `<${cfg.z1}km, ≥${cfg.minCyl} cyl/month — optimal` },
-    { name: 'Feasible', color: '#0891b2', bg: '#e0f2fe', desc: `${cfg.z1}–${cfg.z2}km OR 10–${cfg.minCyl-1} cyl/month` },
-    { name: 'Marginal', color: '#d97706', bg: '#fef9c3', desc: `${cfg.z2}–${cfg.z3}km OR 9–14 cyl/month` },
-    { name: 'Not Recommended', color: '#dc2626', bg: '#fee2e2', desc: `>${cfg.z3}km — consider sub-depot` },
+  var tierDefs = [
+    { name: 'Highly Feasible',   color: '#16a34a', desc: '<' + cfg.z1 + 'km, ≥' + cfg.minCyl + ' cyl/month' },
+    { name: 'Feasible',          color: '#0891b2', desc: cfg.z1 + '–' + cfg.z2 + 'km or 10–' + (cfg.minCyl-1) + ' cyl/month' },
+    { name: 'Marginal',          color: '#d97706', desc: cfg.z2 + '–' + cfg.z3 + 'km or <10 cyl/month' },
+    { name: 'Not Recommended',   color: '#dc2626', desc: '>' + cfg.z3 + 'km — consider sub-depot' }
   ];
-  tierDefs.forEach(td => {
-    const n = tierCounts[td.name] || 0;
-    const pct = withTier.length > 0 ? (n / withTier.length * 100) : 0;
-    const bar = document.createElement('div');
-    bar.style.cssText = 'display:flex;align-items:center;gap:10px;font-size:12px';
-    bar.innerHTML = `
-      <div style="width:130px;font-weight:500;color:${td.color}">${td.name}</div>
-      <div style="flex:1;height:20px;background:#f0f2f5;border-radius:4px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${td.color};border-radius:4px;transition:width .5s;display:flex;align-items:center;padding-left:6px">
-          ${pct > 8 ? `<span style="color:#fff;font-size:10px;font-weight:600">${n}</span>` : ''}
-        </div>
-      </div>
-      ${pct <= 8 ? `<span style="font-size:11px;font-weight:600;color:${td.color};width:16px">${n}</span>` : '<div style="width:16px"></div>'}
-      <div style="width:260px;font-size:11px;color:var(--muted)">${td.desc}</div>
-    `;
-    barContainer.appendChild(bar);
+  tierDefs.forEach(function(td) {
+    var n = tierCounts[td.name] || 0;
+    var pct = withTier.length > 0 ? Math.round(n / withTier.length * 100) : 0;
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:center;gap:10px;font-size:12px;margin-bottom:4px';
+    wrap.innerHTML =
+      '<div style="width:130px;font-weight:500;color:' + td.color + '">' + td.name + '</div>' +
+      '<div style="flex:1;height:20px;background:#f0f2f5;border-radius:4px;overflow:hidden">' +
+        '<div style="height:100%;width:' + pct + '%;background:' + td.color + ';border-radius:4px;transition:width .4s"></div>' +
+      '</div>' +
+      '<div style="width:24px;font-size:11px;font-weight:600;color:' + td.color + ';text-align:right">' + n + '</div>' +
+      '<div style="width:240px;font-size:11px;color:#6b7a92">' + td.desc + '</div>';
+    barContainer.appendChild(wrap);
   });
 
-  // key observations
-  const obsEl = document.getElementById('rp-key-obs');
-  const obs = [];
-  const topVol = [...withTier].sort((a,b) => b.cyl-a.cyl).slice(0,3);
-  if (topVol.length) obs.push(`🔝 Highest volume: <strong>${topVol[0].name}</strong> (${topVol[0].cyl} cyl/month, ${topVol[0].dist}km)`);
-  const notRec = withTier.filter(f => f.tier === 'Not Recommended');
-  if (notRec.length) obs.push(`⚠️ <strong>${notRec.length} facilities</strong> flagged Not Recommended (>${cfg.z3}km): ${notRec.map(f=>f.name).join(', ')} — consider sub-depot`);
-  const inner = withTier.filter(f => f.dist < cfg.z1);
-  if (inner.length) {
-    const innerCyl = inner.reduce((s,f)=>s+f.cyl,0);
-    obs.push(`📍 <strong>${inner.length} facilities</strong> within ${cfg.z1}km generate <strong>${totCyl > 0 ? Math.round(innerCyl/totCyl*100) : 0}%</strong> of total volume — prioritise for weekly runs`);
+  // observations
+  var obsEl = document.getElementById('rp-key-obs');
+  var obs = [];
+  if (withTier.length > 0) {
+    var topVol = withTier.slice().sort(function(a,b){return b.cyl-a.cyl;})[0];
+    obs.push('🔝 Highest volume: <strong>' + topVol.name + '</strong> (' + topVol.cyl + ' cyl/month, ' + topVol.dist + 'km)');
+    var notRec = withTier.filter(function(f){return f.tier==='Not Recommended';});
+    if (notRec.length) obs.push('⚠️ <strong>' + notRec.length + '</strong> facility flagged Not Recommended (>' + cfg.z3 + 'km) — consider sub-depot');
+    var inner = withTier.filter(function(f){return f.dist < cfg.z1;});
+    if (inner.length && totCyl > 0) {
+      var innerCyl = inner.reduce(function(s,f){return s+f.cyl;},0);
+      obs.push('📍 <strong>' + inner.length + '</strong> facilities within ' + cfg.z1 + 'km generate <strong>' + Math.round(innerCyl/totCyl*100) + '%</strong> of total volume');
+    }
   }
-  obsEl.innerHTML = obs.length ? obs.map(o => `<div style="margin-bottom:4px">• ${o}</div>`).join('') : '<div style="color:var(--muted)">Add facilities to see key observations.</div>';
+  obsEl.innerHTML = obs.length
+    ? obs.map(function(o){return '<div style="margin-bottom:4px">• ' + o + '</div>';}).join('')
+    : '<div style="color:#6b7a92">Add facilities to see key observations.</div>';
 
   // rec banner
   document.getElementById('rp-rec-msg').textContent = withTier.length > 0
-    ? `${withTier.length} facilities · ${totCyl.toLocaleString()} cyl/month · ${activeZones.length} routes · ~${totalRuns} truck runs/month`
+    ? withTier.length + ' facilities · ' + totCyl.toLocaleString() + ' cyl/month · ' + activeZones.length + ' routes · ~' + totalRuns + ' truck runs/month'
     : 'Add facilities below to generate route recommendations.';
 
-  // if on routes/feas/monitor tabs, re-render
-  if (currentRPTab === 'routes') renderRoutes();
-  if (currentRPTab === 'feas') renderFeasTable();
-  if (currentRPTab === 'monitor') renderMonitor();
+  _rpZones    = zones;
+  _rpWithTier = withTier;
 
-  // store zones for render
-  window._rpZones = zones;
-  window._rpWithTier = withTier;
+  if (currentRPTab === 'routes')  renderRoutes();
+  if (currentRPTab === 'feas')    renderFeasTable();
+  if (currentRPTab === 'monitor') renderMonitor();
 }
 
 function renderRoutes() {
-  const cfg = getConfig();
-  const zones = window._rpZones || [];
-  const container = document.getElementById('rp-routes-container');
+  var container = document.getElementById('rp-routes-container');
   container.innerHTML = '';
-
-  const activeZones = zones.filter(z => z.facilities && z.facilities.length > 0);
+  var activeZones = _rpZones.filter(function(z){return z.facilities && z.facilities.length > 0;});
   if (!activeZones.length) {
-    container.innerHTML = '<div class="box" style="margin-top:14px;color:var(--muted);font-size:13px">No facilities added yet — go to Add Facilities tab to get started.</div>';
+    container.innerHTML = '<div class="box" style="margin-top:14px;color:#6b7a92;font-size:13px">No facilities added yet.</div>';
     return;
   }
-
-  const zoneColors = ['#0891b2','#1a6fdb','#7c3aed','#d97706'];
-
-  activeZones.forEach((z, zi) => {
-    const box = document.createElement('div');
+  var zoneColors = ['#0891b2','#1a6fdb','#7c3aed','#d97706'];
+  activeZones.forEach(function(z, zi) {
+    var sorted = z.facilities.slice().sort(function(a,b){return a.dist-b.dist;});
+    var box = document.createElement('div');
     box.className = 'box';
     box.style.marginTop = '14px';
 
-    const sorted = [...z.facilities].sort((a,b) => a.dist - b.dist);
-    const tips = [];
-    if (sorted.length) tips.push(`Highest volume stop: <strong>${sorted.sort((a,b)=>b.cyl-a.cyl)[0].name}</strong>`);
-    sorted.sort((a,b) => a.dist - b.dist);
+    var rows = sorted.map(function(f, i) {
+      return '<tr>' +
+        '<td style="color:#6b7a92">' + (i+1) + '</td>' +
+        '<td>' + f.name + '</td>' +
+        '<td style="color:#6b7a92">' + f.type + '</td>' +
+        '<td>' + (f.beds||'—') + '</td>' +
+        '<td style="font-weight:600">' + f.cyl + '</td>' +
+        '<td>' + f.dist + 'km</td>' +
+        '<td><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:' + f.color + ';color:' + f.textColor + '">' + f.tier + '</span></td>' +
+        '</tr>';
+    }).join('');
 
-    box.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="width:10px;height:10px;border-radius:50%;background:${zoneColors[zi]};display:inline-block;flex-shrink:0"></span>
-          <div class="box-title" style="margin:0">Route ${zi+1} — ${z.label}</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:11px;color:var(--muted)">${z.facilities.length} facilities · ${z.cylTotal} cyl/month · ${z.monthlyRuns} truck runs/month</span>
-          <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:${zoneColors[zi]}22;color:${zoneColors[zi]}">${z.freq}</span>
-        </div>
-      </div>
-      ${tips.length ? `<div style="font-size:11px;color:var(--muted);margin-bottom:12px;font-style:italic">💡 ${tips.join(' · ')}</div>` : '<div style="margin-bottom:12px"></div>'}
-      <div style="overflow-x:auto">
-        <table style="min-width:440px">
-          <thead><tr>
-            <th>#</th><th>Facility</th><th>Type</th><th>Beds</th><th>Cyl/mo</th><th>Distance</th><th>Tier</th>
-          </tr></thead>
-          <tbody>
-            ${sorted.map((f,i) => `
-              <tr>
-                <td style="color:var(--muted)">${i+1}</td>
-                <td>${f.name}</td>
-                <td style="color:var(--muted)">${f.type}</td>
-                <td>${f.beds||'—'}</td>
-                <td style="font-weight:600">${f.cyl}</td>
-                <td>${f.dist}km</td>
-                <td><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:${f.color};color:${f.textColor}">${f.tier}</span></td>
-              </tr>
-            `).join('')}
-            <tr style="background:#f8f9fc">
-              <td colspan="4" style="font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">TOTALS</td>
-              <td style="font-weight:700">${z.cylTotal}</td>
-              <td colspan="2" style="font-size:11px;color:var(--muted)">${z.runsPerDelivery} run${z.runsPerDelivery>1?'s':''}/delivery · ${z.monthlyRuns} runs/month</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    `;
+    box.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<span style="width:10px;height:10px;border-radius:50%;background:' + zoneColors[zi] + ';display:inline-block"></span>' +
+          '<strong>Route ' + (zi+1) + ' — ' + z.label + '</strong>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+          '<span style="font-size:11px;color:#6b7a92">' + z.facilities.length + ' facilities · ' + z.cylTotal + ' cyl/month · ' + z.monthlyRuns + ' truck runs/month</span>' +
+          '<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:' + zoneColors[zi] + '22;color:' + zoneColors[zi] + '">' + z.freq + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="overflow-x:auto"><table style="min-width:440px">' +
+        '<thead><tr><th>#</th><th>Facility</th><th>Type</th><th>Beds</th><th>Cyl/mo</th><th>Distance</th><th>Tier</th></tr></thead>' +
+        '<tbody>' + rows +
+          '<tr style="background:#f8f9fc">' +
+            '<td colspan="4" style="font-weight:600;color:#6b7a92;font-size:11px;text-transform:uppercase;letter-spacing:.5px">TOTALS</td>' +
+            '<td style="font-weight:700">' + z.cylTotal + '</td>' +
+            '<td colspan="2" style="font-size:11px;color:#6b7a92">' + z.runsPerDelivery + ' run' + (z.runsPerDelivery > 1 ? 's' : '') + '/delivery · ' + z.monthlyRuns + ' runs/month</td>' +
+          '</tr>' +
+        '</tbody>' +
+      '</table></div>';
     container.appendChild(box);
   });
 }
 
 function renderFeasTable() {
-  const withTier = window._rpWithTier || [];
-  const tbody = document.getElementById('feas-tbody');
-  const sorted = [...withTier].sort((a,b) => {
-    if (feasSortKey === 'vol') return b.cyl - a.cyl;
+  var tbody = document.getElementById('feas-tbody');
+  var sorted = _rpWithTier.slice().sort(function(a,b) {
+    if (feasSortKey === 'vol')  return b.cyl - a.cyl;
     if (feasSortKey === 'tier') {
-      const order = {'Highly Feasible':0,'Feasible':1,'Marginal':2,'Not Recommended':3};
+      var order = {'Highly Feasible':0,'Feasible':1,'Marginal':2,'Not Recommended':3};
       return order[a.tier] - order[b.tier];
     }
     return a.dist - b.dist;
   });
-  tbody.innerHTML = sorted.map(f => `
-    <tr>
-      <td>${f.name}</td>
-      <td style="color:var(--muted)">${f.type}</td>
-      <td>${f.dist}km</td>
-      <td style="font-weight:600">${f.cyl}</td>
-      <td><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:${f.color};color:${f.textColor}">${f.tier}</span></td>
-      <td style="font-size:11px;color:var(--muted)">${f.rec}</td>
-    </tr>
-  `).join('') || '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">No facilities added yet.</td></tr>';
+  if (sorted.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:#6b7a92;text-align:center;padding:20px">No facilities added yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = sorted.map(function(f) {
+    return '<tr>' +
+      '<td>' + f.name + '</td>' +
+      '<td style="color:#6b7a92">' + f.type + '</td>' +
+      '<td>' + f.dist + 'km</td>' +
+      '<td style="font-weight:600">' + f.cyl + '</td>' +
+      '<td><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:' + f.color + ';color:' + f.textColor + '">' + f.tier + '</span></td>' +
+      '<td style="font-size:11px;color:#6b7a92">' + f.rec + '</td>' +
+      '</tr>';
+  }).join('');
 }
 
 function sortFeas(key) { feasSortKey = key; renderFeasTable(); }
 
 function renderMonitor() {
-  const withTier = window._rpWithTier || [];
-  const zones = window._rpZones || [];
-  const tbody = document.getElementById('monitor-tbody');
-
-  // assign route number to each facility
-  const routeMap = {};
-  zones.forEach((z,zi) => {
-    (z.facilities||[]).forEach(f => { routeMap[f.name] = zi+1; });
+  var tbody = document.getElementById('monitor-tbody');
+  var routeMap = {};
+  _rpZones.forEach(function(z, zi) {
+    (z.facilities || []).forEach(function(f) { routeMap[f.name] = zi + 1; });
   });
-
-  tbody.innerHTML = withTier.map(f => `
-    <tr>
-      <td>${f.name}</td>
-      <td style="color:var(--muted)">Route ${routeMap[f.name]||'—'}</td>
-      <td>${f.cyl}</td>
-      <td><input type="number" placeholder="—" style="width:70px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--bg)" /></td>
-      <td>
-        <select style="padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:inherit;background:var(--bg)">
-          <option value="">—</option>
-          <option value="yes">✅ Yes</option>
-          <option value="no">❌ No</option>
-          <option value="partial">⚡ Partial</option>
-        </select>
-      </td>
-      <td><input type="text" placeholder="notes..." style="width:100%;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:inherit;background:var(--bg)" /></td>
-    </tr>
-  `).join('') || '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">No facilities added yet.</td></tr>';
+  if (_rpWithTier.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:#6b7a92;text-align:center;padding:20px">No facilities added yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _rpWithTier.map(function(f) {
+    return '<tr>' +
+      '<td>' + f.name + '</td>' +
+      '<td style="color:#6b7a92">Route ' + (routeMap[f.name] || '—') + '</td>' +
+      '<td>' + f.cyl + '</td>' +
+      '<td><input type="number" placeholder="—" style="width:70px;padding:3px 6px;border:1px solid #e2e6ed;border-radius:4px;font-family:monospace;font-size:12px;background:#f9fafc" /></td>' +
+      '<td><select style="padding:3px 6px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;font-family:inherit;background:#f9fafc">' +
+        '<option value="">—</option><option value="yes">✅ Yes</option><option value="no">❌ No</option><option value="partial">⚡ Partial</option>' +
+        '</select></td>' +
+      '<td><input type="text" placeholder="notes..." style="width:100%;padding:3px 6px;border:1px solid #e2e6ed;border-radius:4px;font-size:11px;font-family:inherit;background:#f9fafc" /></td>' +
+      '</tr>';
+  }).join('');
 }
 
-// CSV / paste import for route planner
+// CSV / paste import
 function openRPImport() {
   document.getElementById('rp-csv-file').value = '';
   document.getElementById('rp-csv-err').style.display = 'none';
@@ -1917,22 +2002,21 @@ function openRPImport() {
 }
 
 function importRPCSV() {
-  const file = document.getElementById('rp-csv-file').files[0];
-  const errEl = document.getElementById('rp-csv-err');
-  if (!file) { errEl.textContent = 'Please select a CSV file.'; errEl.style.display='block'; return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    const lines = e.target.result.trim().split('
-').filter(l => l.trim());
-    let start = 0;
-    if (isNaN(parseFloat(lines[0].split(/[,	]/)[3]))) start = 1;
-    let count = 0;
-    for (let i = start; i < lines.length; i++) {
-      const cols = lines[i].split(/[,	]/).map(v => v.trim().replace(/^"|"$/g,''));
+  var file = document.getElementById('rp-csv-file').files[0];
+  var errEl = document.getElementById('rp-csv-err');
+  if (!file) { errEl.textContent = 'Please select a CSV file.'; errEl.style.display = 'block'; return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var lines = e.target.result.trim().split('\n').filter(function(l){return l.trim();});
+    var start = 0;
+    if (isNaN(parseFloat(lines[0].split(/[,\t]/)[3]))) start = 1;
+    var count = 0;
+    for (var i = start; i < lines.length; i++) {
+      var cols = lines[i].split(/[,\t]/).map(function(v){return v.trim().replace(/^"|"$/g,'');});
       if (cols.length >= 5) { addFacility({ name:cols[0], type:cols[1], beds:cols[2], dist:cols[3], cyl:cols[4] }); count++; }
     }
     closeModal('rp-import-modal');
-    toast(`✅ Imported ${count} facilities`);
+    toast('Imported ' + count + ' facilities');
     calcRP();
   };
   reader.readAsText(file);
@@ -1945,54 +2029,49 @@ function openRPPaste() {
 }
 
 function applyRPPaste() {
-  const raw = document.getElementById('rp-paste-area').value.trim();
-  const errEl = document.getElementById('rp-paste-err');
-  if (!raw) { errEl.textContent = 'Please paste some data first.'; errEl.style.display='block'; return; }
-  const lines = raw.split('
-').filter(l => l.trim());
-  let count = 0;
-  lines.forEach(line => {
-    const cols = line.split(/[,	]/).map(v => v.trim());
+  var raw = document.getElementById('rp-paste-area').value.trim();
+  var errEl = document.getElementById('rp-paste-err');
+  if (!raw) { errEl.textContent = 'Please paste some data first.'; errEl.style.display = 'block'; return; }
+  var lines = raw.split('\n').filter(function(l){return l.trim();});
+  var count = 0;
+  lines.forEach(function(line) {
+    var cols = line.split(/[,\t]/).map(function(v){return v.trim();});
     if (cols.length >= 5) { addFacility({ name:cols[0], type:cols[1], beds:cols[2], dist:cols[3], cyl:cols[4] }); count++; }
   });
   closeModal('rp-paste-modal');
-  toast(`✅ Added ${count} facilities`);
+  toast('Added ' + count + ' facilities');
   calcRP();
 }
 
 function exportRPCSV() {
-  const facs = getFacilities();
-  const cfg = getConfig();
+  var facs = getFacilities();
+  var cfg  = getConfig();
   if (!facs.length) { toast('No facilities to export'); return; }
-  const zones = window._rpZones || [];
-  const routeMap = {};
-  zones.forEach((z,zi) => (z.facilities||[]).forEach(f => routeMap[f.name] = zi+1));
-  const withTier = facs.map(f => ({ ...f, ...tierInfo(f.dist, f.cyl, cfg.z1, cfg.z2, cfg.z3, cfg.minCyl) }));
-  let csv = 'Facility,Type,Beds,Distance (km),Cyl/Month,Route,Tier,Recommendation
-';
-  withTier.forEach(f => {
-    csv += `"${f.name}","${f.type}",${f.beds},${f.dist},${f.cyl},${routeMap[f.name]||''},"${f.tier}","${f.rec}"
-`;
+  var routeMap = {};
+  _rpZones.forEach(function(z, zi) { (z.facilities||[]).forEach(function(f){routeMap[f.name]=zi+1;}); });
+  var withTier = facs.map(function(f){ return Object.assign({}, f, tierInfo(f.dist, f.cyl, cfg.z1, cfg.z2, cfg.z3, cfg.minCyl)); });
+  var csv = 'Facility,Type,Beds,Distance (km),Cyl/Month,Route,Tier,Recommendation\n';
+  withTier.forEach(function(f) {
+    csv += '"' + f.name + '","' + f.type + '",' + f.beds + ',' + f.dist + ',' + f.cyl + ',' + (routeMap[f.name]||'') + ',"' + f.tier + '","' + f.rec + '"\n';
   });
-  const encoded = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  const a = document.createElement('a');
+  var encoded = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  var a = document.createElement('a');
   a.href = encoded;
   a.download = 'route_plan_' + cfg.hubName.replace(/\s+/g, '_') + '.csv';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  toast('✅ CSV exported');
+  toast('CSV exported');
 }
 
-// setMode is defined in the main script block above — handles all three modes
-
-// init route planner with a couple of example facilities
-addFacility({ name: 'General Hospital A', type: 'Hospital', beds: 120, dist: 8, cyl: 45 });
-addFacility({ name: 'Health Centre B', type: 'Health Centre', beds: 40, dist: 15, cyl: 18 });
-addFacility({ name: 'District Hospital C', type: 'Hospital', beds: 200, dist: 32, cyl: 62 });
-addFacility({ name: 'Clinic D', type: 'Clinic', beds: 25, dist: 55, cyl: 11 });
+// init with example facilities
+addFacility({ name: 'General Hospital A',  type: 'Hospital',      beds: 120, dist: 8,  cyl: 45 });
+addFacility({ name: 'Health Centre B',     type: 'Health Centre', beds: 40,  dist: 15, cyl: 18 });
+addFacility({ name: 'District Hospital C', type: 'Hospital',      beds: 200, dist: 32, cyl: 62 });
+addFacility({ name: 'Clinic D',            type: 'Clinic',        beds: 25,  dist: 55, cyl: 11 });
 calcRP();
 </script>
+
 
 </body>
 </html>
