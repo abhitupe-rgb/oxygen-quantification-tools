@@ -460,6 +460,14 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
   <span>Medical Oxygen — Cost Comparison & Planning · Dummy data for demonstration</span>
 </header>
 
+<!-- OSPT positioning note -->
+<div style="background:#f0f9ff;border-bottom:1px solid #bae6fd;padding:9px 28px;font-size:12px;color:#0c4a6e;display:flex;align-items:center;gap:10px;line-height:1.5">
+  <span style="font-size:14px;flex-shrink:0">ℹ️</span>
+  <div>
+    <strong>How this tool fits with the UNICEF OSPT:</strong> the OSPT is a national/subnational demand quantification and source recommendation tool. This tool is designed to start where OSPT leaves off — interrogating facility-level cost, modelling hub-and-spoke economics, and planning distribution routes. They complement rather than replace each other.
+  </div>
+</div>
+
 <!-- Mode toggle -->
 <div class="mode-bar">
   <button class="mode-btn active" id="btn-single" onclick="setMode('single')">🏥 Single Facility</button>
@@ -563,7 +571,7 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
           <input type="number" id="t1-elec" value="0.169" step="0.001" onchange="calcT1()" />
         </div>
         <div class="field">
-          <label>BME hours/day on PSA <span class="tip" data-tip="Biomedical engineer hours dedicated to PSA. Use fractions if shared (e.g. 0.5). Can be 0 if BME pre-existed installation.">?</span></label>
+          <label>BME hours/day on PSA <span class="tip" data-tip="Average BME hours per CALENDAR day (incl. weekends/holidays). For a full-time engineer working only weekdays, enter ~1.4 (= 2h × 5/7). Use 0 if BME was already employed before PSA installation.">?</span></label>
           <input type="number" id="t1-bmehours" value="2" step="0.5" onchange="calcT1()" />
         </div>
         <div class="field">
@@ -574,11 +582,11 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
         <div class="adv-fields">
           <div class="field">
             <label>Plant capacity (Nm³/hr) <span class="tip" data-tip="Rated output of the PSA plant">?</span></label>
-            <input type="number" id="t1-psacap" value="100" onchange="calcT1()" />
+            <input type="number" id="t1-psacap" value="30" onchange="calcT1()" />
           </div>
           <div class="field">
             <label>Power consumption (kW) <span class="tip" data-tip="Electrical draw of the PSA plant at full capacity">?</span></label>
-            <input type="number" id="t1-psakw" value="75" onchange="calcT1()" />
+            <input type="number" id="t1-psakw" value="23" onchange="calcT1()" />
           </div>
           <div class="field">
             <label>Annual maintenance & spares ($) <span class="tip" data-tip="Filters, sieve bed, spare parts">?</span></label>
@@ -950,26 +958,50 @@ function psaCPM3_t1(hrs, inp) {
   return out > 0 ? (capex + opex * inp.years) / (out * inp.years) : Infinity;
 }
 
+// num() reads a numeric input value safely.
+// - Empty/null/NaN values fall back to the default
+// - 0 is respected as a legitimate input (no silent default-substitution)
+// - Negative values are clamped to 0 (no real-world cost or quantity is negative;
+//   if a user enters -500, the tool would otherwise compute nonsense)
+function num(id, def, allowNegative) {
+  const el = document.getElementById(id);
+  if (!el) return def;
+  const raw = el.value;
+  if (raw === '' || raw === null || raw === undefined) return def;
+  const n = parseFloat(raw);
+  if (isNaN(n)) return def;
+  if (!allowNegative && n < 0) {
+    // visually flag the input as invalid
+    el.style.borderColor = '#dc2626';
+    el.title = 'Negative values not allowed — reset to 0';
+    el.value = 0;
+    return 0;
+  }
+  el.style.borderColor = '';
+  el.title = '';
+  return n;
+}
+
 function calcT1() {
   const inp = {
-    beds: +document.getElementById('t1-beds').value||800,
-    surge: +document.getElementById('t1-surge').value||3,
-    htype: +document.querySelector('input[name=t1-htype]:checked').value||0.05,
-    loxPrice: +document.getElementById('t1-loxprice').value||500,
-    transport: +document.getElementById('t1-transport').value||0.115,
-    dist: +document.getElementById('t1-dist').value||50,
-    loxCapex: +document.getElementById('t1-loxcapex').value||0,
-    loxMaint: +document.getElementById('t1-loxmaint').value||0,
-    psaHours: +document.getElementById('t1-psahours').value||14,
-    elec: +document.getElementById('t1-elec').value||0.169,
-    bmeHours: +document.getElementById('t1-bmehours').value||2,
-    bmeRate: +document.getElementById('t1-bmerate').value||1.25,
-    psaCap: +document.getElementById('t1-psacap').value||100,
-    psaKW: +document.getElementById('t1-psakw').value||75,
-    psaMaint: +document.getElementById('t1-psamaint').value||5000,
-    psaCapex: +document.getElementById('t1-psacapex').value||150000,
-    capexFunded: document.querySelector('input[name=t1-capfund]:checked').value==='donor',
-    years: +document.getElementById('t1-years').value||10,
+    beds: num('t1-beds', 800),
+    surge: num('t1-surge', 3),
+    htype: parseFloat(document.querySelector('input[name=t1-htype]:checked').value) || 0.05,
+    loxPrice: num('t1-loxprice', 500),
+    transport: num('t1-transport', 0.115),
+    dist: num('t1-dist', 50),
+    loxCapex: num('t1-loxcapex', 0),
+    loxMaint: num('t1-loxmaint', 0),
+    psaHours: num('t1-psahours', 14),
+    elec: num('t1-elec', 0.169),
+    bmeHours: num('t1-bmehours', 2),
+    bmeRate: num('t1-bmerate', 1.25),
+    psaCap: num('t1-psacap', 100),
+    psaKW: num('t1-psakw', 75),
+    psaMaint: num('t1-psamaint', 5000),
+    psaCapex: num('t1-psacapex', 150000),
+    capexFunded: document.querySelector('input[name=t1-capfund]:checked').value === 'donor',
+    years: num('t1-years', 10),
   };
 
   const peak = inp.beds * inp.htype * inp.surge;
@@ -986,7 +1018,20 @@ function calcT1() {
   const annPsaOPEX = annElec + annBME + inp.psaMaint;
   const effCapex = inp.capexFunded ? 0 : inp.psaCapex;
   const psaTCO = effCapex + annPsaOPEX * inp.years;
-  const psaWins = psaCPM3 < loxCPM3;
+
+  // ── CAPACITY VALIDATION ──
+  // PSA must actually meet demand for a meaningful comparison.
+  // If PSA is producing less than facility consumes, it's not a real winner.
+  // If PSA is dramatically oversized, the $/m³ is misleading.
+  const annPsaOutput = inp.psaCap * inp.psaHours * 365;
+  const capacityRatio = annDemand > 0 ? annPsaOutput / annDemand : Infinity;
+  const psaUndersized = annPsaOutput > 0 && annDemand > 0 && annPsaOutput < annDemand * 0.95; // <95% of need
+  const psaOversized  = capacityRatio > 2.0; // >2x demand
+  const psaNotRunning = inp.psaHours === 0 || inp.psaCap === 0;
+
+  // Winner determined by Total Cost of Ownership (apples-to-apples).
+  // But PSA can ONLY win if it is actually capable of meeting demand.
+  const psaWins = !psaUndersized && !psaNotRunning && psaTCO < loxTCO;
 
   // summary cards
   document.getElementById('t1-peakneed').textContent = peak.toFixed(0)+' Nm³/hr';
@@ -1015,11 +1060,21 @@ function calcT1() {
   document.getElementById('t1-lox-m3').textContent = `Transport: $${tp.toFixed(2)}/ton (${inp.dist}km×2)`;
   document.getElementById('t1-lox-fn').textContent = inp.loxCapex>0 ? `✓ VIE tank CAPEX ($${fmtU(inp.loxCapex)}) included` : `⚠ LOX tank CAPEX set to $0 — add for fair comparison`;
 
-  // rec banner
-  const saving = Math.abs(psaTCO-loxTCO);
-  document.getElementById('sf-rec-msg').textContent = psaWins
-    ? `PSA is cheaper by ${fmtU(saving)} over ${inp.years} years ($${psaCPM3.toFixed(3)}/m³ vs LOX $${loxCPM3.toFixed(3)}/m³).${inp.capexFunded?' Note: PSA CAPEX is donor-funded — factor in for full picture.':''}`
-    : `LOX is cheaper by ${fmtU(saving)} over ${inp.years} years ($${loxCPM3.toFixed(3)}/m³ vs PSA $${psaCPM3.toFixed(3)}/m³).${inp.loxCapex===0?' Note: LOX tank CAPEX is $0 — add actual cost for fair comparison.':''}`;
+  // rec banner — based on Total Cost of Ownership over the planning horizon
+  const saving = Math.abs(psaTCO - loxTCO);
+  let recMsg;
+  if (psaNotRunning) {
+    recMsg = `⚠️ PSA configuration invalid: ${inp.psaHours === 0 ? 'run hours' : 'capacity'} is zero — PSA cannot supply oxygen as configured. Adjust PSA settings or compare against LOX only.`;
+  } else if (psaUndersized) {
+    recMsg = `⚠️ PSA is undersized for this facility — it would produce ${fmtU(annPsaOutput)} Nm³/yr but the facility needs ${fmtU(annDemand)} Nm³/yr (${Math.round(annPsaOutput/annDemand*100)}% of demand). Increase PSA capacity or run hours before comparing — current TCO figures assume full supply, which isn't possible.`;
+  } else if (psaOversized) {
+    recMsg = `⚠️ PSA is oversized: producing ${capacityRatio.toFixed(1)}× facility demand. PSA $/m³ looks artificially low because cost is spread across phantom output that won't be consumed. ${psaWins ? `Apparent saving: ${fmtU(saving)} over ${inp.years}yr — but realistic if PSA is downsized or serves multiple facilities (see Hub & Spoke).` : `LOX TCO: ${fmtU(loxTCO)}, PSA TCO: ${fmtU(psaTCO)}.`}`;
+  } else if (psaWins) {
+    recMsg = `PSA has lower total cost of ownership over ${inp.years} years — saving ${fmtU(saving)} (PSA TCO: ${fmtU(psaTCO)} vs LOX TCO: ${fmtU(loxTCO)}).${inp.capexFunded?' Note: PSA CAPEX is donor-funded — factor in for full picture.':''}`;
+  } else {
+    recMsg = `LOX has lower total cost of ownership over ${inp.years} years — saving ${fmtU(saving)} (LOX TCO: ${fmtU(loxTCO)} vs PSA TCO: ${fmtU(psaTCO)}).${inp.loxCapex===0?' Note: LOX tank CAPEX is $0 — add actual cost for a fair comparison.':''}`;
+  }
+  document.getElementById('sf-rec-msg').textContent = recMsg;
 
   // TCO table
   const tbody = document.getElementById('t1-tco-tbody');
@@ -1066,9 +1121,11 @@ function calcT1() {
 
   const bkBody = document.getElementById('t1-bk-tbody');
   bkBody.innerHTML=''; let bkFound=false;
-  [2,4,6,8,10,12,14,16,18,20,22,24].forEach(h=>{
+  const _t1Hours = [2,4,6,8,10,12,14,16,18,20,22,24];
+  const _t1Closest = _t1Hours.reduce((p,c)=>Math.abs(c-inp.psaHours)<Math.abs(p-inp.psaHours)?c:p);
+  _t1Hours.forEach(h=>{
     const c=psaCPM3_t1(h,inp); const wins=c<loxCPM3; const isBk=!bkFound&&wins; if(isBk) bkFound=true;
-    const isCur=h===Math.round(inp.psaHours);
+    const isCur=h===_t1Closest;
     const tr=document.createElement('tr'); if(isBk) tr.className='bk-row'; else if(isCur) tr.className='cur-row';
     tr.innerHTML=`<td>${h}h/day${isCur?' ◀ current':''}</td><td class="${wins?'cheaper':'costlier'}">$${c.toFixed(4)}/m³</td><td>$${loxCPM3.toFixed(4)}/m³</td><td class="${wins?'cheaper':'costlier'}">${wins?'PSA ✓'+(isBk?' 🔀 breakeven':''):'LOX ✓'}</td>`;
     bkBody.appendChild(tr);
@@ -1090,19 +1147,19 @@ function calcT2() {
   const lmoPrice = +document.getElementById('t2-district').value;
   document.getElementById('t2-lmoprice').value = lmoPrice;
   const inp = {
-    patients:+document.getElementById('t2-patients').value||1202,
-    o2ppd:+document.getElementById('t2-o2ppd').value||3230,
-    psaHours:+document.getElementById('t2-psahours').value||11,
-    lpm:+document.getElementById('t2-psalpm').value||1000,
-    elec:+document.getElementById('t2-elec').value||9,
-    kw:+document.getElementById('t2-psakw').value||75,
-    fixed:+document.getElementById('t2-psafixed').value||68908,
-    lmoHours:+document.getElementById('t2-lmohours').value||1,
-    lmoPrice, lmoFixed:+document.getElementById('t2-lmofixed').value||8100,
-    dCyls:+document.getElementById('t2-dcyls').value||35,
-    bCyls:+document.getElementById('t2-bcyls').value||10,
-    dCost:+document.getElementById('t2-dcost').value||300,
-    bCost:+document.getElementById('t2-bcost').value||200,
+    patients:num('t2-patients', 1202),
+    o2ppd:num('t2-o2ppd', 3230),
+    psaHours:num('t2-psahours', 11),
+    lpm:num('t2-psalpm', 1000),
+    elec:num('t2-elec', 9),
+    kw:num('t2-psakw', 75),
+    fixed:num('t2-psafixed', 68908),
+    lmoHours:num('t2-lmohours', 1),
+    lmoPrice, lmoFixed:num('t2-lmofixed', 8100),
+    dCyls:num('t2-dcyls', 35),
+    bCyls:num('t2-bcyls', 10),
+    dCost:num('t2-dcost', 300),
+    bCost:num('t2-bcost', 200),
   };
 
   const totalO2 = inp.patients * inp.o2ppd * DAYS;
@@ -1175,9 +1232,12 @@ function calcT2() {
   // psa table
   const tbody = document.getElementById('t2-psa-tbody');
   tbody.innerHTML='';
-  [2,4,6,8,10,11,12,14,16,18,20,22,24].forEach(h=>{
+  // Find the closest tabulated hour to the user's actual setting
+  const _tabHours = [2,4,6,8,10,11,12,14,16,18,20,22,24];
+  const _closestHour = _tabHours.reduce((p,c)=>Math.abs(c-inp.psaHours)<Math.abs(p-inp.psaHours)?c:p);
+  _tabHours.forEach(h=>{
     const r=psaCostT2(h,inp); const cpl=r.litres>0?r.cpl:Infinity; const diff=cpl-lmoCplVar;
-    const isCur=h===Math.round(inp.psaHours);
+    const isCur=h===_closestHour;
     const tr=document.createElement('tr'); if(isCur) tr.className='cur-row';
     tr.innerHTML=`<td>${h}h${isCur?' ◀ current':''}</td><td>${fmtL(r.litres)} L</td><td>${fmtINR(r.elec)}</td><td>${fmtINR(r.total)}</td><td>₹${cpl.toFixed(4)}</td><td class="${diff<0?'cheaper':'costlier'}">${diff<0?'▼ ₹'+Math.abs(diff).toFixed(4)+' cheaper':'▲ ₹'+diff.toFixed(4)+' costlier'}</td>`;
     tbody.appendChild(tr);
@@ -1209,21 +1269,21 @@ function removeSpoke(id) { const el=document.getElementById(id); if(el) el.remov
 
 function calcHS() {
   const inp = {
-    hubCap:+document.getElementById('hs-hubcap').value||300,
-    hubHours:+document.getElementById('hs-hubhours').value||18,
-    elec:+document.getElementById('hs-elec').value||0.12,
-    capex:+document.getElementById('hs-capex').value||350000,
+    hubCap:num('hs-hubcap', 300),
+    hubHours:num('hs-hubhours', 18),
+    elec:num('hs-elec', 0.12),
+    capex:num('hs-capex', 350000),
     capexFunded:document.getElementById('hs-capfund').value==='donor',
-    kw:+document.getElementById('hs-kw').value||200,
-    maint:+document.getElementById('hs-maint').value||18000,
-    bmeHours:+document.getElementById('hs-bmehours').value||4,
-    bmeRate:+document.getElementById('hs-bmerate').value||1.5,
+    kw:num('hs-kw', 200),
+    maint:num('hs-maint', 18000),
+    bmeHours:num('hs-bmehours', 4),
+    bmeRate:num('hs-bmerate', 1.5),
     distMode:document.getElementById('hs-distmode').value,
-    pipepm:+document.getElementById('hs-pipepm').value||150,
-    transcost:+document.getElementById('hs-transcost').value||2.5,
-    deliveries:+document.getElementById('hs-deliveries').value||4,
-    years:+document.getElementById('hs-years').value||10,
-    indCost:+document.getElementById('hs-indcost').value||1.15,
+    pipepm:num('hs-pipepm', 150),
+    transcost:num('hs-transcost', 2.5),
+    deliveries:num('hs-deliveries', 4),
+    years:num('hs-years', 10),
+    indCost:num('hs-indcost', 1.15),
   };
 
   document.getElementById('hs-pipeline-fields').style.display = inp.distMode==='pipeline'?'block':'none';
@@ -1286,12 +1346,13 @@ function calcHS() {
   document.getElementById('hs-saving').textContent = spokes.length>0?fmtU(Math.abs(systemSaving)):'—';
   document.getElementById('hs-saving-sub').textContent = spokes.length>0?(systemSaving>=0?`hub saves over ${inp.years} yrs`:`hub costs more over ${inp.years} yrs`):'add spoke facilities';
 
-  const hubWins = isFinite(avgHubCPM3) && avgHubCPM3<inp.indCost;
+  // Winner determined by total system TCO, not avg unit cost (apples-to-apples)
+  const hubWins = totalHubTCO < totalIndTCO;
   document.getElementById('hs-rec-msg').textContent = spokes.length===0
     ? 'Add spoke facilities to see the recommendation.'
     : hubWins
-      ? `Hub-and-spoke is cheaper at $${avgHubCPM3.toFixed(3)}/m³ vs $${inp.indCost.toFixed(3)}/m³ independently — saving ${fmtU(systemSaving)} over ${inp.years} years across ${spokes.length} facilities.`
-      : `Independent supply is cheaper ($${inp.indCost.toFixed(3)}/m³ vs hub $${avgHubCPM3.toFixed(3)}/m³). Try adding more facilities or increasing hub run hours.`;
+      ? `Hub-and-spoke has lower total cost over ${inp.years} years — saving ${fmtU(Math.abs(systemSaving))} across ${spokes.length} facilities (Hub TCO: ${fmtU(totalHubTCO)} vs Independent TCO: ${fmtU(totalIndTCO)}).`
+      : `Independent supply has lower total cost over ${inp.years} years — Hub TCO: ${fmtU(totalHubTCO)} vs Independent TCO: ${fmtU(totalIndTCO)}. Try adding more facilities or increasing hub run hours.`;
 
   // spoke chart
   if(hsSpokChart) hsSpokChart.destroy();
