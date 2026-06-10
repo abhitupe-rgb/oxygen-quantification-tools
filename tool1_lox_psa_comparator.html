@@ -543,6 +543,21 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
             <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4">
               ⓘ m³/bed/hr — use country-specific clinical data if available. Typical range: 0.01 (rural clinic) to 0.10 (high-acuity ICU-heavy facility).
             </div></div>
+
+        <label class="adv-toggle" onclick="this.nextElementSibling.classList.toggle('open')">▸ Seasonality (optional)</label>
+        <div class="adv-fields">
+          <div class="field">
+            <label>Peak season demand increase (%) <span class="tip" data-tip="How much demand rises above baseline during peak season. 0% = no seasonality. 30% = peak demand is 30% higher.">?</span></label>
+            <input type="number" id="t1-peak-mult" value="0" min="0" max="200" step="5" onchange="calcT1()" />
+          </div>
+          <div class="field">
+            <label>Peak season duration (months/year)</label>
+            <input type="number" id="t1-peak-months" value="0" min="0" max="12" step="1" onchange="calcT1()" />
+          </div>
+          <div style="font-size:10px;color:var(--muted);padding:7px 9px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:5px;line-height:1.5">
+            Affects annual O₂ demand and LOX procurement volumes. Leave at 0% / 0 months if your facility has no significant seasonal variation.
+          </div>
+        </div>
         </div>
 
         <div class="sec-lbl">🔵 LOX Parameters</div>
@@ -626,16 +641,22 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
       <div id="t2-inputs" style="display:none">
         <div class="sec-lbl">Facility & Patient Load</div>
         <div class="field">
-          <label>Facility / District <span class="tip" data-tip="Each district has a preset LMO price from procurement data">?</span></label>
-          <select id="t2-district" onchange="calcT2()">
-            <option value="21.25">Amritsar (₹21.25/m³)</option>
-            <option value="20.99">Barnala (₹20.99/m³)</option>
-            <option value="19.34">Patiala — cheapest (₹19.34/m³)</option>
-            <option value="20.46">Jalandhar (₹20.46/m³)</option>
-            <option value="20.18">Ludhiana (₹20.18/m³)</option>
-            <option value="22.93">Fazilka — costliest (₹22.93/m³)</option>
-            <option value="21.53">Firozepur (₹21.53/m³)</option>
-            <option value="20.91">Hoshiarpur (₹20.91/m³)</option>
+          <label>Facility / Location name <span class="tip" data-tip="A label for this facility — used in displays and exports. Doesn't affect calculations.">?</span></label>
+          <input type="text" id="t2-district" value="Facility A" onchange="calcT2()" />
+        </div>
+        <div class="field">
+          <label>Currency <span class="tip" data-tip="Currency symbol used in displays. Calculations are unit-agnostic — use any currency consistently across all cost inputs.">?</span></label>
+          <select id="t2-currency" onchange="calcT2()">
+            <option value="$">$ (USD)</option>
+            <option value="€">€ (EUR)</option>
+            <option value="£">£ (GBP)</option>
+            <option value="₹">₹ (INR)</option>
+            <option value="₦">₦ (NGN)</option>
+            <option value="KSh">KSh (KES)</option>
+            <option value="R">R (ZAR)</option>
+            <option value="UGX">UGX</option>
+            <option value="TSh">TSh (TZS)</option>
+            <option value="local">Local currency</option>
           </select>
         </div>
         <div class="field">
@@ -655,17 +676,17 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
         <label class="adv-toggle" onclick="this.nextElementSibling.classList.toggle('open')">▸ Advanced / Edit defaults</label>
         <div class="adv-fields">
           <div class="field"><label>Plant capacity (LPM) <span class="tip" data-tip="Litres Per Minute at full capacity">?</span></label><input type="number" id="t2-psalpm" value="1000" onchange="calcT2()" /></div>
-          <div class="field"><label>Electricity cost (₹/kWh)</label><input type="number" id="t2-elec" value="9" step="0.1" onchange="calcT2()" /></div>
+          <div class="field"><label>Electricity cost (per kWh) <span class="tip" data-tip="Cost of grid electricity per kWh in your chosen currency.">?</span></label><input type="number" id="t2-elec" value="0.15" step="0.01" onchange="calcT2()" /></div>
           <div class="field"><label>Power consumption (kW) <span class="tip" data-tip="Kilowatts drawn when running">?</span></label><input type="number" id="t2-psakw" value="75" onchange="calcT2()" /></div>
-          <div class="field"><label>Fixed costs/month — staff + maintenance (₹)</label><input type="number" id="t2-psafixed" value="68908" onchange="calcT2()" /></div>
+          <div class="field"><label>Fixed costs/month — staff + maintenance <span class="tip" data-tip="Monthly fixed running cost: staff salaries, maintenance contracts, etc.">?</span></label><input type="number" id="t2-psafixed" value="800" onchange="calcT2()" /></div>
         </div>
 
         <div class="sec-lbl">🔵 LMO Tank <span style="font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;margin-left:4px">Bulk liquid oxygen, by tanker</span></div>
         <div class="field"><label>Run hours / day</label><input type="number" id="t2-lmohours" value="1" min="0" max="24" onchange="calcT2()" /></div>
         <label class="adv-toggle" onclick="this.nextElementSibling.classList.toggle('open')">▸ Advanced / Edit defaults</label>
         <div class="adv-fields">
-          <div class="field"><label>LMO price (₹/m³) — auto from district</label><input type="number" id="t2-lmoprice" value="21.25" step="0.01" onchange="calcT2()" /></div>
-          <div class="field"><label>Fixed costs/month — licensing etc. (₹)</label><input type="number" id="t2-lmofixed" value="8100" onchange="calcT2()" /></div>
+          <div class="field"><label>LMO price (per m³) <span class="tip" data-tip="LMO supplier price per cubic metre. Use whatever currency you set above — calculations are consistent.">?</span></label><input type="number" id="t2-lmoprice" value="1.15" step="0.01" onchange="calcT2()" /></div>
+          <div class="field"><label>Fixed costs/month — licensing etc. <span class="tip" data-tip="Monthly fixed cost: licensing, regulatory fees, etc.">?</span></label><input type="number" id="t2-lmofixed" value="100" onchange="calcT2()" /></div>
         </div>
 
         <div class="sec-lbl">🟢 Cylinders <span style="font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;margin-left:4px">Portable compressed gas</span></div>
@@ -673,8 +694,8 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
         <div class="field"><label>B-type cylinders used / month <span class="tip" data-tip="B-type: small cylinders (~1,700 L each)">?</span></label><input type="number" id="t2-bcyls" value="10" onchange="calcT2()" /></div>
         <label class="adv-toggle" onclick="this.nextElementSibling.classList.toggle('open')">▸ Advanced / Edit defaults</label>
         <div class="adv-fields">
-          <div class="field"><label>D-cylinder refill cost (₹)</label><input type="number" id="t2-dcost" value="300" onchange="calcT2()" /></div>
-          <div class="field"><label>B-cylinder refill cost (₹)</label><input type="number" id="t2-bcost" value="200" onchange="calcT2()" /></div>
+          <div class="field"><label>D-cylinder refill cost <span class="tip" data-tip="Cost to refill one D-type (~7,000 L) cylinder, in your chosen currency.">?</span></label><input type="number" id="t2-dcost" value="8" onchange="calcT2()" /></div>
+          <div class="field"><label>B-cylinder refill cost <span class="tip" data-tip="Cost to refill one B-type (~1,700 L) cylinder, in your chosen currency.">?</span></label><input type="number" id="t2-bcost" value="3" onchange="calcT2()" /></div>
         </div>
       </div>
 
@@ -763,13 +784,13 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
         </div>
         <div class="charts-row">
           <div class="box" style="margin-bottom:0"><div class="box-title">PSA cost per litre vs run hours</div><div class="box-sub">▲ Run PSA past the intersection and it beats LMO on cost</div><canvas id="t2-psa-chart" height="200"></canvas></div>
-          <div class="box" style="margin-bottom:0"><div class="box-title">LMO price by district (₹/m³)</div><div class="box-sub">Your selected district highlighted</div><canvas id="t2-district-chart" height="200"></canvas></div>
+          <div class="box" style="margin-bottom:0"><div class="box-title">LMO price sensitivity</div><div class="box-sub">How LMO cost/litre changes around your current price (highlighted dot)</div><canvas id="t2-district-chart" height="200"></canvas></div>
         </div>
         <div style="margin-bottom:18px"></div>
         <div class="box">
           <div class="box-title">PSA operational cost — by run hours</div>
           <div class="box-sub">Your current setting highlighted. "vs LMO" shows how PSA compares at each level.</div>
-          <table><thead><tr><th>Hours/day</th><th>O₂ produced</th><th>Electricity/month</th><th>Total OPEX</th><th>₹/litre</th><th>vs LMO</th></tr></thead><tbody id="t2-psa-tbody"></tbody></table>
+          <table><thead><tr><th>Hours/day</th><th>O₂ produced</th><th>Electricity/month</th><th>Total OPEX</th><th>Cost/litre</th><th>vs LMO</th></tr></thead><tbody id="t2-psa-tbody"></tbody></table>
         </div>
       </div>
 
@@ -820,11 +841,16 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
       </div>
 
       <div class="sec-lbl">Distribution</div>
-      <div class="field"><label>Distribution mode <span class="tip" data-tip="Pipeline = pressurised oxygen piped to each spoke. Transport = cylinder/tanker delivery from hub.">?</span></label>
+      <div class="field"><label>Distribution mode <span class="tip" data-tip="Pipeline = direct piping (best for ward-level or campus distribution within one hospital, typically <500m). Transport = cylinder or tanker delivery (best for inter-facility distribution between hospitals km apart).">?</span></label>
         <select id="hs-distmode" onchange="calcHS()"><option value="pipeline">Pipeline to each spoke</option><option value="transport">Transport / cylinder delivery</option></select></div>
       <div id="hs-pipeline-fields">
-        <div class="field"><label>Pipeline cost ($/metre) <span class="tip" data-tip="Installation cost per metre including trenching, piping, fittings. Placeholder — varies $50–$500+/m.">?</span></label><input type="number" id="hs-pipepm" value="150" onchange="calcHS()" /></div>
-        <div class="data-note">⚠ Pipeline cost/metre is a placeholder ($150/m). Real costs vary $50–$500+/m by terrain and country.</div>
+        <div class="field"><label>Pipeline cost ($/metre) <span class="tip" data-tip="Installation cost per metre. Typical ranges: $30–$100/m for medical gas piping inside an existing hospital building; $100–$300/m for new trenched runs between campus buildings; $300+/m for inter-facility installations with road crossings.">?</span></label><input type="number" id="hs-pipepm" value="60" onchange="calcHS()" /></div>
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:9px 11px;font-size:11px;color:#1e40af;line-height:1.5;margin-top:6px">
+          <strong>When to use Pipeline mode:</strong><br>
+          • <strong>Within one hospital</strong> — modelling which wards or buildings on a single campus should be piped into the central O₂ system vs kept on cylinders. Distances in metres or hundreds of metres.<br>
+          • <strong>Between very close facilities</strong> — e.g. teaching hospital with annexed clinics on the same plot.<br><br>
+          For inter-facility distribution across kilometres, Transport mode is usually more realistic.
+        </div>
       </div>
       <div id="hs-transport-fields" style="display:none">
         <div class="field"><label>Transport cost ($/km/delivery) <span class="tip" data-tip="Cost per km per delivery from hub to spoke">?</span></label><input type="number" id="hs-transcost" value="2.5" step="0.5" onchange="calcHS()" /></div>
@@ -834,7 +860,72 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
       <div class="sec-lbl">Planning & Baseline</div>
       <div class="field"><label>Time horizon (years) <span class="tip" data-tip="Years over which to compare total cost of ownership">?</span></label><input type="number" id="hs-years" value="10" min="1" max="20" onchange="calcHS()" /></div>
       <div class="field"><label>Redundancy buffer (%) <span class="tip" data-tip="Extra capacity above calculated demand — 20% minimum recommended">?</span></label><input type="number" id="hs-redundancy" value="20" onchange="calcHS()" /></div>
-      <div class="field"><label>Independent supply cost ($/m³) <span class="tip" data-tip="What each spoke currently pays per m³ from its own source — used as savings baseline">?</span></label><input type="number" id="hs-indcost" value="1.15" step="0.01" onchange="calcHS()" /></div>
+
+      <div class="sec-lbl">Reliability</div>
+      <div class="field">
+        <label>Backup cylinder reserve at each spoke ($/month)
+          <span class="tip" data-tip="Cost of maintaining a cylinder reserve at each spoke to cover hub downtime. Hub-and-spoke networks have a single point of failure — if the hub goes down, all spokes lose supply unless they have backup. Set to 0 if you want to ignore downtime risk, but most realistic planning includes some buffer.">?</span>
+        </label>
+        <input type="number" id="hs-backup" value="200" min="0" step="50" onchange="calcHS()" />
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4">
+          Typical range: $0 (no buffer, accepts downtime risk) to $500+/month (substantial reserve at each spoke).
+        </div>
+      </div>
+
+      <div class="sec-lbl">Seasonality</div>
+      <div class="field">
+        <label>Peak season demand increase (%)
+          <span class="tip" data-tip="How much oxygen demand increases above baseline during peak season (e.g. respiratory illness peak, monsoon, dry-season pneumonia). 0% = no seasonality. 30% = peak demand is 30% higher than baseline.">?</span>
+        </label>
+        <input type="number" id="hs-peak-mult" value="30" min="0" max="200" step="5" onchange="calcHS()" />
+      </div>
+      <div class="field">
+        <label>Peak season duration (months/year)
+          <span class="tip" data-tip="How many months per year the peak demand multiplier applies. E.g. 3 months for a respiratory illness peak season.">?</span>
+        </label>
+        <input type="number" id="hs-peak-months" value="3" min="0" max="12" step="1" onchange="calcHS()" />
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:-4px;margin-bottom:12px;padding:8px 10px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;line-height:1.5">
+        Seasonality affects two things: (1) the hub must be sized for peak demand, and (2) annual oxygen consumption is higher than flat-rate models suggest. Set to 0% if your context has no seasonal variation.
+      </div>
+      <div class="field">
+        <label>Independent supply cost ($/m³)
+          <span class="tip" data-tip="What each spoke currently pays per m³ from its own source — used as the savings baseline. If your facilities pay per cylinder, use the converter below to translate to $/m³.">?</span>
+        </label>
+        <input type="number" id="hs-indcost" value="1.15" step="0.01" onchange="calcHS()" />
+      </div>
+
+      <details style="margin:6px 0 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 10px">
+        <summary style="font-size:11px;font-weight:600;color:#0369a1;cursor:pointer;list-style:none">
+          🛢 Convert from cylinder pricing <span style="font-weight:400;color:var(--muted)">— most facilities buy per cylinder, not per m³</span>
+        </summary>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:11px;color:var(--muted);line-height:1.6">
+            Enter what a facility typically pays per cylinder refill. The tool calculates the equivalent $/m³.<br><br>
+            <strong>For reference:</strong> J/D cylinder (6.8 m³) refill prices vary widely by country and procurement arrangement — from around <strong>$8</strong> on government-contracted prices in some countries up to <strong>$50–$110+</strong> on private retail prices (incl. transport, leasing, deposits). Use whatever the facility actually pays — there's no universal default.
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:11px;color:var(--muted);min-width:90px">Cylinder price ($)</span>
+            <input type="number" id="hs-cyl-price" value="8" step="0.5" min="0" onchange="convertCylToM3()" style="width:80px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:'IBM Plex Mono',monospace;background:#fff">
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:11px;color:var(--muted);min-width:90px">Cylinder size (m³)</span>
+            <select id="hs-cyl-size" onchange="convertCylToM3()" style="padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:#fff">
+              <option value="1.7">B-type (1.7 m³ / 1,700 L)</option>
+              <option value="3.4">E-type (3.4 m³ / 3,400 L)</option>
+              <option value="6.8" selected>J/D-type (6.8 m³ / 6,800 L)</option>
+              <option value="7.0">7 m³ cylinder</option>
+              <option value="custom">Custom size...</option>
+            </select>
+            <input type="number" id="hs-cyl-custom" value="6.8" step="0.1" min="0.1" onchange="convertCylToM3()" style="display:none;width:70px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:'IBM Plex Mono',monospace;background:#fff">
+            <span id="hs-cyl-custom-unit" style="display:none;font-size:11px;color:var(--muted)">m³</span>
+          </div>
+          <div style="font-size:11px;color:#0369a1;background:#fff;padding:6px 9px;border-radius:5px;border:1px solid #bae6fd">
+            <strong>Result:</strong> <span id="hs-cyl-result">$1.18/m³</span>
+            <button onclick="applyCylConversion()" style="margin-left:8px;padding:3px 10px;font-size:11px;background:var(--spoke);color:white;border:none;border-radius:4px;cursor:pointer;font-family:inherit;font-weight:500">Apply ↑</button>
+          </div>
+        </div>
+      </details>
     </div>
 </aside>
 
@@ -859,7 +950,7 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
                 <th style="min-width:220px">Facility name</th>
                 <th style="width:95px">Beds</th>
                 <th style="width:130px">Hospital type</th>
-                <th style="width:100px">Dist. (km)</th>
+                <th style="width:100px">Dist. <span style="font-weight:400;font-size:10px;color:var(--muted)">(km, decimals OK)</span></th>
                 <th style="width:110px">Hub cost/m³</th>
                 <th style="width:170px">Saving vs independent</th>
                 <th style="width:40px"></th>
@@ -906,7 +997,7 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
     <h2>📋 Paste data row</h2>
     <p>Paste comma- or tab-separated values from a spreadsheet. 14 values in order:<br><br>
     <code style="font-size:11px">lmo_price, patients, o2ppd, psa_hours, psa_lpm, elec_cost, psa_kw, psa_fixed, lmo_hours, lmo_fixed, d_cyls, b_cyls, d_cost, b_cost</code></p>
-    <textarea id="paste-area" placeholder="21.25, 1202, 3230, 11, 1000, 9, 75, 68908, 1, 8100, 35, 10, 300, 200"></textarea>
+    <textarea id="paste-area" placeholder="1.15, 1200, 3230, 11, 1000, 0.15, 75, 800, 1, 100, 35, 10, 8, 3"></textarea>
     <div class="modal-err" id="paste-err"></div>
     <div class="modal-acts"><button onclick="closeModal('paste-modal')">Cancel</button><button class="apply" onclick="applyPaste()">Apply</button></div>
   </div>
@@ -964,6 +1055,7 @@ let spokeCount = 0;
 
 function fmtU(n) { if(!isFinite(n)||isNaN(n)) return '—'; if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M'; if(n>=1e3) return '$'+(n/1e3).toFixed(1)+'K'; return '$'+n.toFixed(0); }
 function fmtINR(n) { if(!isFinite(n)||isNaN(n)) return '—'; if(n>=1e5) return '₹'+(n/1e5).toFixed(2)+'L'; if(n>=1e3) return '₹'+(n/1e3).toFixed(1)+'K'; return '₹'+n.toFixed(0); }
+function fmtNum(n) { if(!isFinite(n)||isNaN(n)) return '—'; if(n>=1e6) return (n/1e6).toFixed(2)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return n.toFixed(0); }
 function fmtL(n) { if(n>=1e6) return (n/1e6).toFixed(2)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return n.toFixed(0); }
 function toast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
@@ -1037,6 +1129,8 @@ function calcT1() {
     psaCapex: num('t1-psacapex', 150000),
     capexFunded: document.querySelector('input[name=t1-capfund]:checked').value === 'donor',
     years: num('t1-years', 10),
+    peakMult: 1 + (num('t1-peak-mult', 0) / 100),
+    peakMonths: num('t1-peak-months', 0),
   };
 
   const peak = inp.beds * inp.htype * inp.surge;
@@ -1044,7 +1138,9 @@ function calcT1() {
   const loxLandedPerTon = inp.loxPrice + tp;
   const loxCPM3 = loxLandedPerTon / LOX_NM3_TON;
   const psaCPM3 = psaCPM3_t1(inp.psaHours, inp);
-  const annDemand = inp.beds * inp.htype * H_PER_YR * AVG_UTIL;
+  // Seasonality: weighted multiplier across peak and off-peak months
+  const _t1SeasonalMult = ((inp.peakMonths * inp.peakMult) + ((12 - inp.peakMonths) * 1.0)) / 12;
+  const annDemand = inp.beds * inp.htype * H_PER_YR * AVG_UTIL * _t1SeasonalMult;
   const annLoxTons = annDemand / LOX_NM3_TON;
   const annLoxCost = annLoxTons * loxLandedPerTon + inp.loxMaint;
   const loxTCO = inp.loxCapex + annLoxCost * inp.years;
@@ -1175,12 +1271,14 @@ function psaCostT2(hrs, inp) {
   return { litres, elec, total, cpl: litres>0 ? total/litres : Infinity };
 }
 
-const DISTRICTS = [{name:'Amritsar',lmo:21.25},{name:'Barnala',lmo:20.99},{name:'Patiala',lmo:19.34},{name:'Jalandhar',lmo:20.46},{name:'Ludhiana',lmo:20.18},{name:'Fazilka',lmo:22.93},{name:'Firozepur',lmo:21.53},{name:'Hoshiarpur',lmo:20.91}];
+// DISTRICTS constant removed — tool is now country-agnostic
 
 function calcT2() {
-  const distIdx = document.getElementById('t2-district').selectedIndex;
-  const lmoPrice = +document.getElementById('t2-district').value;
-  document.getElementById('t2-lmoprice').value = lmoPrice;
+  const facilityName = document.getElementById('t2-district').value || 'Facility';
+  const currency = document.getElementById('t2-currency').value;
+  const currencySymbol = currency === 'local' ? '' : currency;
+  // Read LMO price directly from its input (no longer auto-populated from district)
+  const lmoPrice = num('t2-lmoprice', 1.15);
   const inp = {
     patients:num('t2-patients', 1202),
     o2ppd:num('t2-o2ppd', 3230),
@@ -1216,9 +1314,9 @@ function calcT2() {
   const saving = totalCost - opt.total;
 
   document.getElementById('t2-totalo2').textContent = fmtL(totalO2)+' L';
-  document.getElementById('t2-totalcost').textContent = fmtINR(totalCost);
-  document.getElementById('t2-optimal').textContent = fmtINR(opt.total);
-  document.getElementById('t2-saving').textContent = saving>0 ? fmtINR(saving) : '₹0';
+  document.getElementById('t2-totalcost').textContent = currencySymbol + fmtNum(totalCost);
+  document.getElementById('t2-optimal').textContent = currencySymbol + fmtNum(opt.total);
+  document.getElementById('t2-saving').textContent = saving>0 ? currencySymbol + fmtNum(saving) : currencySymbol + '0';
   document.getElementById('t2-savingsub').textContent = saving>0 ? `By running PSA 24h instead of ${inp.psaHours}h/day` : 'PSA already running optimally';
 
   const cpls = [{k:'psa',c:psa.cpl},{k:'cyl',c:cylCpl},{k:'lmo',c:lmoCpl}].sort((a,b)=>a.c-b.c);
@@ -1229,20 +1327,20 @@ function calcT2() {
     el.textContent=bLabels[rankMap[k]]; el.className='badge '+bClasses[rankMap[k]];
   });
 
-  document.getElementById('t2-psa-cpl').textContent = psa.cpl<Infinity?'₹'+psa.cpl.toFixed(3)+'/L':'N/A';
-  document.getElementById('t2-psa-m1').textContent = `${inp.psaHours}h/day · ${fmtINR(psa.total)}/month`;
+  document.getElementById('t2-psa-cpl').textContent = psa.cpl<Infinity?currencySymbol+psa.cpl.toFixed(3)+'/L':'N/A';
+  document.getElementById('t2-psa-m1').textContent = `${inp.psaHours}h/day · ${currencySymbol}${fmtNum(psa.total)}/month`;
   document.getElementById('t2-psa-m2').textContent = `Produces ${fmtL(psa.litres)} L`;
   document.getElementById('t2-psa-pct').textContent = psaPct.toFixed(1)+'%';
   document.getElementById('t2-psa-bar').style.width = psaPct+'%';
 
-  document.getElementById('t2-cyl-cpl').textContent = cylCpl<Infinity?'₹'+cylCpl.toFixed(3)+'/L':'N/A';
+  document.getElementById('t2-cyl-cpl').textContent = cylCpl<Infinity?currencySymbol+cylCpl.toFixed(3)+'/L':'N/A';
   document.getElementById('t2-cyl-m1').textContent = `${inp.dCyls} D + ${inp.bCyls} B cylinders`;
-  document.getElementById('t2-cyl-m2').textContent = `${fmtINR(cylCost)}/month · ${fmtL(cylL)} L`;
+  document.getElementById('t2-cyl-m2').textContent = `${currencySymbol}${fmtNum(cylCost)}/month · ${fmtL(cylL)} L`;
   document.getElementById('t2-cyl-pct').textContent = cylPct.toFixed(1)+'%';
   document.getElementById('t2-cyl-bar').style.width = cylPct+'%';
 
-  document.getElementById('t2-lmo-cpl').textContent = lmoL>0?'₹'+lmoCpl.toFixed(3)+'/L':'N/A (0h)';
-  document.getElementById('t2-lmo-m1').textContent = `${inp.lmoHours}h/day · ${fmtINR(lmoCost)}/month`;
+  document.getElementById('t2-lmo-cpl').textContent = lmoL>0?currencySymbol+lmoCpl.toFixed(3)+'/L':'N/A (0h)';
+  document.getElementById('t2-lmo-m1').textContent = `${inp.lmoHours}h/day · ${currencySymbol}${fmtNum(lmoCost)}/month`;
   document.getElementById('t2-lmo-m2').textContent = `Delivers ${fmtL(lmoL)} L`;
   document.getElementById('t2-lmo-pct').textContent = lmoPct.toFixed(1)+'%';
   document.getElementById('t2-lmo-bar').style.width = lmoPct+'%';
@@ -1250,19 +1348,42 @@ function calcT2() {
   // rec
   const cheapSrc=cpls[0].k;
   let recMsg = '';
-  if(saving>1000) recMsg=`You could save ${fmtINR(saving)}/month by running PSA 24h/day. PSA: ₹${psa.cpl.toFixed(3)}/L vs LMO: ₹${lmoCplVar.toFixed(3)}/L.`;
-  else if(cheapSrc==='psa') recMsg=`PSA is your cheapest source at ₹${psa.cpl.toFixed(3)}/L — maximise run hours to reduce costs further.`;
+  if(saving>1000) recMsg=`You could save ${currencySymbol}${fmtNum(saving)}/month by running PSA 24h/day. PSA: ${currencySymbol}${psa.cpl.toFixed(3)}/L vs LMO: ${currencySymbol}${lmoCplVar.toFixed(3)}/L.`;
+  else if(cheapSrc==='psa') recMsg=`PSA is your cheapest source at ${currencySymbol}${psa.cpl.toFixed(3)}/L — maximise run hours to reduce costs further.`;
   else recMsg=`${cheapSrc==='cyl'?'Cylinders':'LMO'} is cheapest now — verify inputs or consider increasing PSA run hours.`;
   document.getElementById('sf-rec-msg').textContent = recMsg;
 
   // psa chart
   const hrs = Array.from({length:25},(_,i)=>i);
   if(t2PsaChart) t2PsaChart.destroy();
-  t2PsaChart = new Chart(document.getElementById('t2-psa-chart'),{type:'line',data:{labels:hrs,datasets:[{label:'PSA ₹/L',data:hrs.map(h=>{const r=psaCostT2(h,inp);return r.litres>0?r.cpl:null;}),borderColor:'#1a6fdb',backgroundColor:'rgba(26,111,219,0.07)',tension:0.4,fill:true,pointRadius:hrs.map(h=>h===inp.psaHours?6:2),pointBackgroundColor:hrs.map(h=>h===inp.psaHours?'#1a6fdb':'rgba(26,111,219,0.3)')},{label:'LMO ₹/L',data:hrs.map(()=>lmoCplVar),borderColor:'#d97706',borderDash:[5,4],pointRadius:0,fill:false}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},scales:{x:{title:{display:true,text:'Hours/day',font:{size:11}}},y:{title:{display:true,text:'₹/litre',font:{size:11}}}}}});
+  t2PsaChart = new Chart(document.getElementById('t2-psa-chart'),{type:'line',data:{labels:hrs,datasets:[{label:'PSA ' + currencySymbol + '/L',data:hrs.map(h=>{const r=psaCostT2(h,inp);return r.litres>0?r.cpl:null;}),borderColor:'#1a6fdb',backgroundColor:'rgba(26,111,219,0.07)',tension:0.4,fill:true,pointRadius:hrs.map(h=>h===inp.psaHours?6:2),pointBackgroundColor:hrs.map(h=>h===inp.psaHours?'#1a6fdb':'rgba(26,111,219,0.3)')},{label:'LMO ' + currencySymbol + '/L',data:hrs.map(()=>lmoCplVar),borderColor:'#d97706',borderDash:[5,4],pointRadius:0,fill:false}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},scales:{x:{title:{display:true,text:'Hours/day',font:{size:11}}},y:{title:{display:true,text:currencySymbol + '/litre',font:{size:11}}}}}});
 
-  // district chart
+  // LMO price sensitivity chart — shows how PSA vs LMO comparison shifts with LMO price
   if(t2DistrictChart) t2DistrictChart.destroy();
-  t2DistrictChart = new Chart(document.getElementById('t2-district-chart'),{type:'bar',data:{labels:DISTRICTS.map(d=>d.name),datasets:[{label:'LMO price (₹/m³)',data:DISTRICTS.map(d=>d.lmo),backgroundColor:DISTRICTS.map((_,i)=>i===distIdx?'#d97706':'rgba(217,119,6,0.25)'),borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:18,title:{display:true,text:'₹/m³',font:{size:11}}}}}});
+  const sensRange = [];
+  const priceCenter = lmoPrice;
+  for (let i = -5; i <= 5; i++) {
+    sensRange.push(Math.max(0.1, priceCenter * (1 + i * 0.2)));
+  }
+  const sensLmoCpL = sensRange.map(p => p / 1000);
+  t2DistrictChart = new Chart(document.getElementById('t2-district-chart'),{
+    type:'line',
+    data:{
+      labels: sensRange.map(p => p.toFixed(2)),
+      datasets:[
+        {label:'LMO ' + currencySymbol + '/L at this price', data: sensLmoCpL,
+         borderColor:'#d97706', backgroundColor:'rgba(217,119,6,0.1)', tension:0.2, fill:true,
+         pointRadius: sensRange.map((p,i) => Math.abs(p - lmoPrice) < 0.01 ? 7 : 3),
+         pointBackgroundColor: sensRange.map((p,i) => Math.abs(p - lmoPrice) < 0.01 ? '#d97706' : 'rgba(217,119,6,0.4)')},
+        {label:'Current PSA ' + currencySymbol + '/L', data: sensRange.map(() => psa.cpl < Infinity ? psa.cpl : null),
+         borderColor:'#1a6fdb', borderDash:[5,4], pointRadius:0, fill:false}
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},scales:{
+      x:{title:{display:true,text:'LMO price (' + currencySymbol + '/m³)',font:{size:11}}},
+      y:{title:{display:true,text:currencySymbol + '/litre',font:{size:11}}}
+    }}
+  });
 
   // psa table
   const tbody = document.getElementById('t2-psa-tbody');
@@ -1274,7 +1395,7 @@ function calcT2() {
     const r=psaCostT2(h,inp); const cpl=r.litres>0?r.cpl:Infinity; const diff=cpl-lmoCplVar;
     const isCur=h===_closestHour;
     const tr=document.createElement('tr'); if(isCur) tr.className='cur-row';
-    tr.innerHTML=`<td>${h}h${isCur?' ◀ current':''}</td><td>${fmtL(r.litres)} L</td><td>${fmtINR(r.elec)}</td><td>${fmtINR(r.total)}</td><td>₹${cpl.toFixed(4)}</td><td class="${diff<0?'cheaper':'costlier'}">${diff<0?'▼ ₹'+Math.abs(diff).toFixed(4)+' cheaper':'▲ ₹'+diff.toFixed(4)+' costlier'}</td>`;
+    tr.innerHTML=`<td>${h}h${isCur?' ◀ current':''}</td><td>${fmtL(r.litres)} L</td><td>${currencySymbol}${fmtNum(r.elec)}</td><td>${currencySymbol}${fmtNum(r.total)}</td><td>${currencySymbol}${cpl.toFixed(4)}</td><td class="${diff<0?'cheaper':'costlier'}">${diff<0?'▼ '+currencySymbol+Math.abs(diff).toFixed(4)+' cheaper':'▲ '+currencySymbol+diff.toFixed(4)+' costlier'}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -1304,7 +1425,7 @@ function addSpoke() {
       </select>
       <input type="number" class="sp-htype-custom" step="0.005" min="0" max="0.5" value="0.05" onchange="calcHS()" placeholder="m³/bed/hr" style="display:none;margin-top:4px;width:100%" />
     </td>
-    <td><input class="sp-dist" type="number" value="5" onchange="calcHS()" /></td>
+    <td><input class="sp-dist" type="number" value="5" step="0.1" min="0" onchange="calcHS()" title="Distance from hub in km — use decimals for short distances (e.g. 0.2 for 200m)" /></td>
     <td class="sp-hub-cost scell-hub">—</td>
     <td class="sp-saving">—</td>
     <td><button class="btn-rm" onclick="removeSpoke('sr-${spokeCount}')">✕</button></td>
@@ -1335,6 +1456,49 @@ function spokeHtypeChange(selEl) {
   calcHS();
 }
 
+function getCylinderSize() {
+  const sel = document.getElementById('hs-cyl-size');
+  if (!sel) return 6.8;
+  if (sel.value === 'custom') {
+    return parseFloat(document.getElementById('hs-cyl-custom').value) || 6.8;
+  }
+  return parseFloat(sel.value) || 6.8;
+}
+
+function convertCylToM3() {
+  const sel = document.getElementById('hs-cyl-size');
+  const custom = document.getElementById('hs-cyl-custom');
+  const customUnit = document.getElementById('hs-cyl-custom-unit');
+  if (sel && sel.value === 'custom') {
+    custom.style.display = 'inline-block';
+    customUnit.style.display = 'inline-block';
+  } else if (custom) {
+    custom.style.display = 'none';
+    customUnit.style.display = 'none';
+  }
+  const price = parseFloat(document.getElementById('hs-cyl-price').value) || 0;
+  const size = getCylinderSize();
+  const perM3 = size > 0 ? price / size : 0;
+  const resultEl = document.getElementById('hs-cyl-result');
+  if (resultEl) {
+    resultEl.textContent = '$' + perM3.toFixed(2) + '/m³';
+    resultEl.dataset.value = perM3.toFixed(4);
+  }
+}
+
+function applyCylConversion() {
+  const resultEl = document.getElementById('hs-cyl-result');
+  if (!resultEl || !resultEl.dataset.value) {
+    convertCylToM3();
+  }
+  const val = parseFloat(resultEl.dataset.value || resultEl.textContent.replace(/[^0-9.]/g,'')) || 0;
+  if (val > 0) {
+    document.getElementById('hs-indcost').value = val.toFixed(2);
+    toast('Independent cost set to $' + val.toFixed(2) + '/m³');
+    calcHS();
+  }
+}
+
 function calcHS() {
   const inp = {
     hubCap:num('hs-hubcap', 300),
@@ -1347,11 +1511,14 @@ function calcHS() {
     bmeHours:num('hs-bmehours', 4),
     bmeRate:num('hs-bmerate', 1.5),
     distMode:document.getElementById('hs-distmode').value,
-    pipepm:num('hs-pipepm', 150),
+    pipepm:num('hs-pipepm', 60),
     transcost:num('hs-transcost', 2.5),
     deliveries:num('hs-deliveries', 4),
     years:num('hs-years', 10),
     indCost:num('hs-indcost', 1.15),
+    backupPerSpoke:num('hs-backup', 200),     // monthly backup cylinder reserve per spoke
+    peakMult: 1 + (num('hs-peak-mult', 30) / 100),  // peak demand uplift (% input → multiplier)
+    peakMonths:num('hs-peak-months', 3),       // months/year at peak
   };
 
   document.getElementById('hs-pipeline-fields').style.display = inp.distMode==='pipeline'?'block':'none';
@@ -1372,8 +1539,13 @@ function calcHS() {
     dist:+r.querySelector('.sp-dist').value||0,
   }));
 
-  const totalDemandYr = spokes.reduce((s,sp)=>s+spokeAnnDemand(sp.beds,sp.htype),0);
+  // Seasonality adjustment: weighted average multiplier across peak and off-peak months
+  const _seasonalMult = ((inp.peakMonths * inp.peakMult) + ((12 - inp.peakMonths) * 1.0)) / 12;
+  const _peakHubCheck = inp.peakMult;  // hub must handle peak demand instantaneously
+  const totalDemandYr = spokes.reduce((s,sp)=>s+spokeAnnDemand(sp.beds,sp.htype),0) * _seasonalMult;
   const totalDemandHr = totalDemandYr/H_PER_YR;
+  // Peak instantaneous demand for hub sizing check
+  const peakInstDemandHr = spokes.length > 0 ? (spokes.reduce((s,sp)=>s+spokeAnnDemand(sp.beds,sp.htype),0)/H_PER_YR) * _peakHubCheck : 0;
   const annElec = inp.kw*inp.hubHours*365*inp.elec;
   const annBME = inp.bmeRate*inp.bmeHours*365;
   const annOPEX = annElec+annBME+inp.maint;
@@ -1396,7 +1568,7 @@ function calcHS() {
   const spokeCosts = spokes.map((sp,i)=>{
     const dc = distCPM3(sp);
     const hcpm = hubProdCPM3+dc;
-    const dYr = spokeAnnDemand(sp.beds,sp.htype);
+    const dYr = spokeAnnDemand(sp.beds,sp.htype) * _seasonalMult;
     const savingTotal = (inp.indCost-hcpm)*dYr*inp.years;
     if(inp.distMode==='pipeline') totalPipeCapex += sp.dist*1000*inp.pipepm;
     const rows = document.querySelectorAll('.srow');
@@ -1409,7 +1581,9 @@ function calcHS() {
     return {name:sp.name||`Facility ${i+1}`,hcpm,dYr};
   });
 
-  const totalHubTCO = effCapex+totalPipeCapex+annOPEX*inp.years;
+  // Add monthly backup cylinder reserve cost (per spoke) to TCO over planning horizon
+  const annualBackupCost = inp.backupPerSpoke * 12 * spokes.length;
+  const totalHubTCO = effCapex + totalPipeCapex + (annOPEX + annualBackupCost) * inp.years;
   const totalIndTCO = spokes.reduce((s,sp)=>s+spokeAnnDemand(sp.beds,sp.htype)*inp.indCost*inp.years,0);
   const systemSaving = totalIndTCO-totalHubTCO;
   const avgHubCPM3 = spokeCosts.length>0 ? spokeCosts.reduce((s,c)=>s+(isFinite(c.hcpm)?c.hcpm:0),0)/spokeCosts.length : hubProdCPM3;
@@ -1424,11 +1598,16 @@ function calcHS() {
 
   // Winner determined by total system TCO, not avg unit cost (apples-to-apples)
   const hubWins = totalHubTCO < totalIndTCO;
+  // Check if hub can handle peak demand (capacity check on instantaneous flow rate)
+  const hubMaxInstHr = inp.hubCap;
+  const peakCapShortfall = peakInstDemandHr > hubMaxInstHr;
+  const peakWarning = peakCapShortfall ? ` ⚠ Hub may be undersized for peak season: ${peakInstDemandHr.toFixed(1)} Nm³/hr needed vs ${hubMaxInstHr} Nm³/hr capacity. Consider larger plant or backup supply during peaks.` : '';
+
   document.getElementById('hs-rec-msg').textContent = spokes.length===0
     ? 'Add spoke facilities to see the recommendation.'
     : hubWins
-      ? `Hub-and-spoke has lower total cost over ${inp.years} years — saving ${fmtU(Math.abs(systemSaving))} across ${spokes.length} facilities (Hub TCO: ${fmtU(totalHubTCO)} vs Independent TCO: ${fmtU(totalIndTCO)}).`
-      : `Independent supply has lower total cost over ${inp.years} years — Hub TCO: ${fmtU(totalHubTCO)} vs Independent TCO: ${fmtU(totalIndTCO)}. Try adding more facilities or increasing hub run hours.`;
+      ? `Hub-and-spoke has lower total cost over ${inp.years} years — saving ${fmtU(Math.abs(systemSaving))} across ${spokes.length} facilities (Hub TCO: ${fmtU(totalHubTCO)} vs Independent TCO: ${fmtU(totalIndTCO)}).${peakWarning}`
+      : `Independent supply has lower total cost over ${inp.years} years — Hub TCO: ${fmtU(totalHubTCO)} vs Independent TCO: ${fmtU(totalIndTCO)}. Try adding more facilities or increasing hub run hours.${peakWarning}`;
 
   // spoke chart
   if(hsSpokChart) hsSpokChart.destroy();
@@ -1442,21 +1621,63 @@ function calcHS() {
     hsTcoChart = new Chart(document.getElementById('hs-tco-chart'),{type:'bar',data:{labels:['Hub & Spoke','Independent'],datasets:[{label:'CAPEX',data:[effCapex+totalPipeCapex,0],backgroundColor:['#ddd6fe','#fed7aa'],borderRadius:0},{label:'OPEX',data:[annOPEX*inp.years,totalIndTCO],backgroundColor:['#7c3aed','#d97706'],borderRadius:4}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},scales:{x:{stacked:true},y:{stacked:true,title:{display:true,text:'USD ($)',font:{size:11}}}}}});
   }
 
-  // breakeven table
+  // breakeven table — with transition-based detection
   const bkBody=document.getElementById('hs-bk-tbody'); bkBody.innerHTML='';
   const avgDist=spokes.length>0?spokes.reduce((s,sp)=>s+sp.dist,0)/spokes.length:5;
-  const avgDemYr=spokes.length>0?totalDemandYr/spokes.length:H_PER_YR*200*0.05*AVG_UTIL;
-  let bkFound=false;
-  [1,2,3,4,5,6,7,8,10,12,15].forEach(n=>{
-    const sOut=inp.hubCap*inp.hubHours*365;
-    const sProd=sOut>0?(effCapex+annOPEX*inp.years)/(sOut*inp.years):Infinity;
-    const sDist=inp.distMode==='pipeline'?(avgDist*1000*inp.pipepm/inp.years)/Math.max(avgDemYr,1):(inp.deliveries*12*avgDist*2*inp.transcost)/Math.max(avgDemYr,1);
-    const sTotal=sProd+sDist;
-    const wins=isFinite(sTotal)&&sTotal<inp.indCost;
-    const isBk=!bkFound&&wins; if(isBk) bkFound=true;
-    const isCur=n===spokes.length;
-    const tr=document.createElement('tr'); if(isBk) tr.className='bk-row'; else if(isCur) tr.className='cur-row';
-    tr.innerHTML=`<td>${n}${isCur?' ◀ current':''}</td><td>${(avgDemYr*n/H_PER_YR).toFixed(1)} Nm³/hr</td><td class="${wins?'cheaper':'costlier'}">$${isFinite(sTotal)?sTotal.toFixed(4):'—'}/m³</td><td>$${inp.indCost.toFixed(4)}/m³</td><td class="${wins?'cheaper':'costlier'}">${wins?'Hub ✓'+(isBk?' 🔀':''):'Independent ✓'}</td>`;
+  const avgDemYr=spokes.length>0?totalDemandYr/spokes.length:H_PER_YR*200*0.05*AVG_UTIL*_seasonalMult;
+  // Build a sensitivity range that always extends comfortably past the current spoke count
+  function _buildHsRange(actualSpokes) {
+    const baseRange = [1,2,3,4,5,6,7,8,10,12,15];
+    // Ensure we go at least 5 facilities beyond the current count, and include the current count itself
+    const minMax = Math.max(15, actualSpokes + 5);
+    const range = baseRange.filter(n => n <= minMax);
+    // Add larger steps if minMax > 15
+    if (minMax > 15) {
+      [20, 25, 30, 40, 50, 75, 100].forEach(n => { if (n <= minMax + 5) range.push(n); });
+    }
+    // Always include the actual current spoke count if not already present
+    if (actualSpokes > 0 && !range.includes(actualSpokes)) {
+      range.push(actualSpokes);
+      range.sort((a,b) => a - b);
+    }
+    return range;
+  }
+  const _hsRange = _buildHsRange(spokes.length);
+  // Hub annual operating cost (fixed regardless of n) and max production capacity
+  const _hubAnnualCost = effCapex/inp.years + annOPEX;
+  const _hubMaxOutputYr = inp.hubCap * inp.hubHours * 365;
+  // Pre-compute each row — hub cost per m³ DECREASES as n increases (fixed cost spread)
+  const _hsRows = _hsRange.map(n => {
+    const networkDemandYr = avgDemYr * n;                 // total network demand for n spokes
+    const servedDemandYr  = Math.min(networkDemandYr, _hubMaxOutputYr);  // capped at hub capacity
+    const sProd = servedDemandYr > 0 ? _hubAnnualCost / servedDemandYr : Infinity;
+    const sDist = inp.distMode === 'pipeline'
+      ? (avgDist * 1000 * inp.pipepm * n / inp.years) / Math.max(networkDemandYr, 1)
+      : (inp.deliveries * 12 * avgDist * 2 * inp.transcost * n) / Math.max(networkDemandYr, 1);
+    const sTotal = sProd + sDist;
+    const overCapacity = networkDemandYr > _hubMaxOutputYr;
+    return { n, sTotal, wins: isFinite(sTotal) && sTotal < inp.indCost, overCapacity, networkDemandYr };
+  });
+  const _allHubWin = _hsRows.every(r => r.wins);
+  const _allIndWin = _hsRows.every(r => !r.wins);
+  if (_allHubWin) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="5" style="background:#dcfce7;color:#15803d;font-weight:600;text-align:center;padding:8px">✓ Hub is cheaper than independent supply at every network size — no breakeven needed</td>`;
+    bkBody.appendChild(tr);
+  } else if (_allIndWin) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="5" style="background:#fee2e2;color:#b91c1c;font-weight:600;text-align:center;padding:8px">⚠ Independent supply is cheaper at every network size in this range — hub does not break even within the modelled facility range</td>`;
+    bkBody.appendChild(tr);
+  }
+  _hsRows.forEach((row, i) => {
+    const isCur = row.n === spokes.length;
+    // Breakeven = first hub-win AFTER an independent-win
+    const isTransition = row.wins && i > 0 && !_hsRows[i-1].wins;
+    const tr=document.createElement('tr');
+    if (isTransition) tr.className='bk-row';
+    else if (isCur) tr.className='cur-row';
+    const capLabel = row.overCapacity ? ' <span style="font-size:10px;color:#b91c1c">⚠ exceeds hub capacity</span>' : '';
+    tr.innerHTML=`<td>${row.n}${isCur?' ◀ current':''}</td><td>${(avgDemYr*row.n/H_PER_YR).toFixed(1)} Nm³/hr${capLabel}</td><td class="${row.wins?'cheaper':'costlier'}">$${isFinite(row.sTotal)?row.sTotal.toFixed(4):'—'}/m³</td><td>$${inp.indCost.toFixed(4)}/m³</td><td class="${row.wins?'cheaper':'costlier'}">${row.wins?'Hub ✓'+(isTransition?' 🔀':''):'Independent ✓'}</td>`;
     bkBody.appendChild(tr);
   });
 }
@@ -1482,6 +1703,7 @@ document.querySelectorAll('.modal-ov').forEach(o=>o.addEventListener('click',e=>
 // ── INIT ──
 calcT1();
 calcT2();
+convertCylToM3();
 addSpoke();
 addSpoke();
 document.querySelectorAll('.sp-name')[0].value='General Hospital A';
