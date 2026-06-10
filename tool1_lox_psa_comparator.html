@@ -270,18 +270,20 @@ tr.tco-tot.lox-tot td { background: var(--lox-light); }
 .costlier { color: var(--danger); }
 
 /* ── SPOKE TABLE ── */
-.spoke-section { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 18px; overflow: hidden; box-shadow: var(--shadow); }
+.spoke-section { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 18px; box-shadow: var(--shadow); }
+.spoke-section .spoke-scroll { overflow-x: auto; }
 .spoke-hdr { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
 .spoke-hdr h2 { font-size: 13px; font-weight: 600; }
 .spoke-hdr p { font-size: 11px; color: var(--muted); }
 .btn-add { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif; font-weight: 500; cursor: pointer; border: 1px solid rgba(8,145,178,0.4); background: var(--spoke-light); color: var(--spoke); transition: all .15s; }
 .btn-add:hover { background: #bae6fd; }
-.sgrid { display: grid; grid-template-columns: 2fr 0.8fr 1.2fr 1fr 1.1fr 1.2fr auto; }
-.sgrid-hdr > div { padding: 7px 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); border-bottom: 1px solid var(--border); background: #f8f9fc; }
-.srow > * { padding: 8px 10px; border-bottom: 1px solid #f0f2f5; display: flex; align-items: center; font-size: 12px; }
-.srow:last-child > * { border-bottom: none; }
-.srow input, .srow select { width: 100%; background: transparent; border: none; color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 12px; outline: none; padding: 2px 4px; border-radius: 4px; }
-.srow input:focus, .srow select:focus { background: #f4f6f9; border: 1px solid var(--border); }
+.spoke-table { width: 100%; min-width: 860px; border-collapse: collapse; }
+.spoke-table thead th { padding: 7px 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); border-bottom: 1px solid var(--border); background: #f8f9fc; text-align: left; }
+.spoke-table tbody td { padding: 6px 10px; border-bottom: 1px solid #f0f2f5; font-size: 12px; vertical-align: middle; }
+.spoke-table tbody tr:last-child td { border-bottom: none; }
+.spoke-table input, .spoke-table select { width: 100%; box-sizing: border-box; background: #f9fafc; border: 1px solid #e6e9ef; color: var(--text); font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; outline: none; padding: 6px 7px; border-radius: 5px; }
+.spoke-table input.sp-beds, .spoke-table input.sp-dist { font-family: 'IBM Plex Mono', monospace; }
+.spoke-table input:focus, .spoke-table select:focus { background: #fff; border-color: var(--hub); }
 .btn-rm { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 3px 6px; border-radius: 4px; }
 .btn-rm:hover { color: var(--danger); background: #fee2e2; }
 .scell-hub { color: var(--hub); font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
@@ -527,12 +529,20 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
           </select>
         </div>
         <div class="field">
-          <label>Hospital type <span class="tip" data-tip="Determines baseline O₂ consumption per bed per hour">?</span></label>
+          <label>Hospital type <span class="tip" data-tip="Determines baseline O₂ consumption per bed per hour. Country systems vary — pick the closest match, or use Custom to enter your own value based on local clinical data.">?</span></label>
           <div class="radio-group">
-            <label><input type="radio" name="t1-htype" value="0.04" onchange="calcT1()"> District (0.04 m³/bed/hr)</label>
-            <label><input type="radio" name="t1-htype" value="0.05" onchange="calcT1()" checked> Tertiary (0.05 m³/bed/hr)</label>
-            <label><input type="radio" name="t1-htype" value="0.06" onchange="calcT1()"> Teaching (0.06 m³/bed/hr)</label>
+            <label><input type="radio" name="t1-htype" value="0.025" onchange="t1HtypeChange()"> Health Centre / Primary care (0.025 m³/bed/hr)</label>
+            <label><input type="radio" name="t1-htype" value="0.04" onchange="t1HtypeChange()"> District / General Hospital (0.04 m³/bed/hr)</label>
+            <label><input type="radio" name="t1-htype" value="0.05" onchange="t1HtypeChange()" checked> Tertiary / Referral Hospital (0.05 m³/bed/hr)</label>
+            <label><input type="radio" name="t1-htype" value="0.06" onchange="t1HtypeChange()"> Teaching / Specialist Hospital (0.06 m³/bed/hr)</label>
+            <label><input type="radio" name="t1-htype" value="custom" onchange="t1HtypeChange()"> Custom — enter your own value</label>
           </div>
+          <div id="t1-custom-htype" style="display:none;margin-top:8px">
+            <input type="number" id="t1-htype-custom-val" value="0.05" step="0.005" min="0" max="0.5" onchange="calcT1()"
+              style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:13px;background:#f9fafc" />
+            <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4">
+              ⓘ m³/bed/hr — use country-specific clinical data if available. Typical range: 0.01 (rural clinic) to 0.10 (high-acuity ICU-heavy facility).
+            </div></div>
         </div>
 
         <div class="sec-lbl">🔵 LOX Parameters</div>
@@ -842,12 +852,23 @@ footer { text-align: center; padding: 12px; font-size: 11px; color: var(--muted)
           <div><h2>● Spoke Facilities</h2><p>Add each facility in the network. Distance = km from hub.</p></div>
           <button class="btn-add" onclick="addSpoke()">+ Add facility</button>
         </div>
-        <div class="sgrid">
-          <div class="sgrid-hdr">
-            <div>Facility name</div><div>Beds</div><div>Hospital type</div>
-            <div>Dist. (km)</div><div>Hub cost/m³</div><div>Saving vs independent</div><div></div>
-          </div>
-          <div id="spoke-rows"></div>
+        <div class="spoke-scroll">
+          <table class="spoke-table">
+            <thead>
+              <tr>
+                <th style="min-width:220px">Facility name</th>
+                <th style="width:95px">Beds</th>
+                <th style="width:130px">Hospital type</th>
+                <th style="width:100px">Dist. (km)</th>
+                <th style="width:110px">Hub cost/m³</th>
+                <th style="width:170px">Saving vs independent</th>
+                <th style="width:40px"></th>
+              </tr>
+            </thead>
+            <tbody id="spoke-rows">
+              <tr id="spoke-empty-row"><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;font-style:italic">No spoke facilities added — click "+ Add facility" above</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -982,11 +1003,25 @@ function num(id, def, allowNegative) {
   return n;
 }
 
+function t1HtypeChange() {
+  const checked = document.querySelector('input[name=t1-htype]:checked');
+  const customDiv = document.getElementById('t1-custom-htype');
+  if (customDiv) customDiv.style.display = (checked && checked.value === 'custom') ? 'block' : 'none';
+  calcT1();
+}
+
 function calcT1() {
   const inp = {
     beds: num('t1-beds', 800),
     surge: num('t1-surge', 3),
-    htype: parseFloat(document.querySelector('input[name=t1-htype]:checked').value) || 0.05,
+    htype: (function() {
+      const checked = document.querySelector('input[name=t1-htype]:checked');
+      if (!checked) return 0.05;
+      if (checked.value === 'custom') {
+        return num('t1-htype-custom-val', 0.05);
+      }
+      return parseFloat(checked.value) || 0.05;
+    })(),
     loxPrice: num('t1-loxprice', 500),
     transport: num('t1-transport', 0.115),
     dist: num('t1-dist', 50),
@@ -1249,23 +1284,56 @@ function spokeAnnDemand(beds, htype) { return beds * htype * H_PER_YR * AVG_UTIL
 
 function addSpoke() {
   spokeCount++;
-  const container = document.getElementById('spoke-rows');
-  const row = document.createElement('div');
-  row.className = 'srow'; row.id = 'sr-'+spokeCount;
-  row.innerHTML = `
-    <div><input class="sp-name" type="text" placeholder="Facility ${spokeCount}" onchange="calcHS()" /></div>
-    <div><input class="sp-beds" type="number" value="200" onchange="calcHS()" /></div>
-    <div><select class="sp-htype" onchange="calcHS()"><option value="0.04">District</option><option value="0.05" selected>Tertiary</option><option value="0.06">Teaching</option></select></div>
-    <div><input class="sp-dist" type="number" value="5" onchange="calcHS()" /></div>
-    <div class="sp-hub-cost scell-hub">—</div>
-    <div class="sp-saving">—</div>
-    <div><button class="btn-rm" onclick="removeSpoke('sr-${spokeCount}')">✕</button></div>
+  const tbody = document.getElementById('spoke-rows');
+  if (!tbody) return;
+  const emptyRow = document.getElementById('spoke-empty-row');
+  if (emptyRow) emptyRow.remove();
+  const tr = document.createElement('tr');
+  tr.className = 'srow';
+  tr.id = 'sr-' + spokeCount;
+  tr.innerHTML = `
+    <td><input class="sp-name" type="text" placeholder="Facility ${spokeCount}" onchange="calcHS()" /></td>
+    <td><input class="sp-beds" type="number" value="200" onchange="calcHS()" /></td>
+    <td>
+      <select class="sp-htype" onchange="spokeHtypeChange(this)" style="width:auto;min-width:130px">
+        <option value="0.025">Health Centre</option>
+        <option value="0.04">District / General</option>
+        <option value="0.05" selected>Tertiary / Referral</option>
+        <option value="0.06">Teaching / Specialist</option>
+        <option value="custom">Custom...</option>
+      </select>
+      <input type="number" class="sp-htype-custom" step="0.005" min="0" max="0.5" value="0.05" onchange="calcHS()" placeholder="m³/bed/hr" style="display:none;margin-top:4px;width:100%" />
+    </td>
+    <td><input class="sp-dist" type="number" value="5" onchange="calcHS()" /></td>
+    <td class="sp-hub-cost scell-hub">—</td>
+    <td class="sp-saving">—</td>
+    <td><button class="btn-rm" onclick="removeSpoke('sr-${spokeCount}')">✕</button></td>
   `;
-  container.appendChild(row);
+  tbody.appendChild(tr);
   calcHS();
 }
 
-function removeSpoke(id) { const el=document.getElementById(id); if(el) el.remove(); calcHS(); }
+function removeSpoke(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  const tbody = document.getElementById('spoke-rows');
+  if (tbody && tbody.querySelectorAll('tr.srow').length === 0) {
+    const tr = document.createElement('tr');
+    tr.id = 'spoke-empty-row';
+    tr.innerHTML = '<td colspan="7" style="text-align:center;color:var(--muted);padding:20px;font-style:italic">No spoke facilities added — click "+ Add facility" above</td>';
+    tbody.appendChild(tr);
+  }
+  calcHS();
+}
+
+function spokeHtypeChange(selEl) {
+  const td = selEl.closest('td');
+  const customInput = td.querySelector('.sp-htype-custom');
+  if (customInput) {
+    customInput.style.display = selEl.value === 'custom' ? 'block' : 'none';
+  }
+  calcHS();
+}
 
 function calcHS() {
   const inp = {
@@ -1292,7 +1360,15 @@ function calcHS() {
   const spokes = Array.from(document.querySelectorAll('.srow')).map(r=>({
     name:r.querySelector('.sp-name').value||'Unnamed',
     beds:+r.querySelector('.sp-beds').value||0,
-    htype:+r.querySelector('.sp-htype').value||0.05,
+    htype:(function(){
+      const sel = r.querySelector('.sp-htype');
+      if (!sel) return 0.05;
+      if (sel.value === 'custom') {
+        const cv = r.querySelector('.sp-htype-custom');
+        return cv ? (parseFloat(cv.value) || 0.05) : 0.05;
+      }
+      return parseFloat(sel.value) || 0.05;
+    })(),
     dist:+r.querySelector('.sp-dist').value||0,
   }));
 
